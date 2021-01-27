@@ -1,6 +1,9 @@
 # mdp-algorithm
 MDP Algorithm
 
+## Class Diagram
+![Class Diagram](class-diagram.png)
+
 ## How to install dependencies
 ```
 pip install -r requirements.txt

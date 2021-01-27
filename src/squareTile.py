@@ -30,6 +30,8 @@ class SquareTile(QGraphicsRectItem):
         if self.__tileType == TileType.UNEXPLORED:
             self.setBrush(QBrush(Qt.lightGray))
         elif self.__tileType == TileType.EXPLORED:
+            self.setBrush(QBrush(Qt.white))
+        elif self.__tileType == TileType.OBSTACLE:
             self.setBrush(QBrush(Qt.black))
         elif self.__tileType == TileType.START:
             self.setBrush(QBrush(Qt.blue))

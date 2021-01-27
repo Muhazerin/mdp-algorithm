@@ -1,6 +1,23 @@
 from enum import IntEnum
 
 
+MIN_Y_INDEX = 0
+MAX_Y_INDEX = 19
+MIN_Y_INDEX = 0
+MAX_X_INDEX = 14
+
+class MapConstant(IntEnum):
+    # Returns a list that contains that index of START
+    @staticmethod
+    def getMapStartList():
+        return [0, 1, 2, 15, 16, 17, 30, 31, 32]
+
+    # Returns a list that contains that index of GOAL
+    @staticmethod
+    def getMapGoalList():
+        return [267, 268, 269, 282, 283, 284, 297, 298, 299]
+
+
 class Bearing(IntEnum):
     NORTH = 0
     EAST = 2
@@ -22,3 +39,10 @@ class TileType(IntEnum):
     OBSTACLE = 3
     START = 4
     GOAL = 5
+
+
+class SensorLocation(IntEnum):
+    FRONT = 1
+    RIGHT = 2
+    BACK = 3
+    LEFT = 4

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '.\src\ui\mainwindow.ui'
+# Form implementation generated from reading ui file '.\mainwindow.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.2
 #
@@ -71,7 +71,6 @@ class Ui_MainWindow(object):
         self.hlSim = QtWidgets.QHBoxLayout()
         self.hlSim.setObjectName("hlSim")
         self.btnExploreSim = QtWidgets.QPushButton(self.centralwidget)
-        self.btnExploreSim.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -81,12 +80,10 @@ class Ui_MainWindow(object):
         self.btnExploreSim.setObjectName("btnExploreSim")
         self.hlSim.addWidget(self.btnExploreSim)
         self.btnFastPathSim = QtWidgets.QPushButton(self.centralwidget)
-        self.btnFastPathSim.setEnabled(False)
         self.btnFastPathSim.setMinimumSize(QtCore.QSize(0, 20))
         self.btnFastPathSim.setObjectName("btnFastPathSim")
         self.hlSim.addWidget(self.btnFastPathSim)
         self.btnImgRecogSim = QtWidgets.QPushButton(self.centralwidget)
-        self.btnImgRecogSim.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -106,7 +103,6 @@ class Ui_MainWindow(object):
         self.btnExploreActualRun.setObjectName("btnExploreActualRun")
         self.hlActualRun.addWidget(self.btnExploreActualRun)
         self.btnFastPathActualRun = QtWidgets.QPushButton(self.centralwidget)
-        self.btnFastPathActualRun.setEnabled(False)
         self.btnFastPathActualRun.setMinimumSize(QtCore.QSize(0, 20))
         self.btnFastPathActualRun.setObjectName("btnFastPathActualRun")
         self.hlActualRun.addWidget(self.btnFastPathActualRun)

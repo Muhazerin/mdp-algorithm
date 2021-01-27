@@ -140,9 +140,6 @@
        <layout class="QHBoxLayout" name="hlSim">
         <item>
          <widget class="QPushButton" name="btnExploreSim">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -162,9 +159,6 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnFastPathSim">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -178,9 +172,6 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnImgRecogSim">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -224,9 +215,6 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnFastPathActualRun">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="minimumSize">
            <size>
             <width>0</width>
