@@ -66,7 +66,7 @@ class Robot(QGraphicsEllipseItem):
             painter.drawEllipse(self.__x + 55, self.__y + 100, 10, 10)
 
 
-
+# A simulated robot
 class SimRobot(Robot):
     def __init__(self, x, y, map):
         super(SimRobot, self).__init__(x, y)

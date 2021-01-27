@@ -1,10 +1,10 @@
 from enum import IntEnum
 
 
-MIN_Y_INDEX = 0
-MAX_Y_INDEX = 19
-MIN_Y_INDEX = 0
-MAX_X_INDEX = 14
+MIN_Y = 0
+MAX_Y = 19
+MIN_X = 0
+MAX_X = 14
 
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START

@@ -52,11 +52,14 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     @pyqtSlot()
     def btnBackwardClicked(self):
         self.__robot.moveRobotBackward()
+        self.__robot.sense()
 
     @pyqtSlot()
     def btnRotateRightClicked(self):
         self.__robot.rotateRobotRight()
+        self.__robot.sense()
 
     @pyqtSlot()
     def btnRotateLeftClicked(self):
         self.__robot.rotateRobotLeft()
+        self.__robot.sense()
