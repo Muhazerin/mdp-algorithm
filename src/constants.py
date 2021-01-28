@@ -6,6 +6,13 @@ MAX_Y = 19
 MIN_X = 0
 MAX_X = 14
 
+
+class AlgoStatus(IntEnum):
+    IDLE = 0
+    RUNNING = 1
+    ENDED = 3
+
+
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START
     @staticmethod

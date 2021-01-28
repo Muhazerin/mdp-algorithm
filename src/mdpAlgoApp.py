@@ -14,7 +14,9 @@ from PyQt5.QtWidgets import QMainWindow, QGraphicsScene
 from graphicsMgr import GraphicsMgr
 from robot import SimRobot
 from map import Map
+# from simExplorationAlgo import SimExplorationAlgo
 from ui import mainwindow
+from mapDialog import MapDialog
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
@@ -32,10 +34,14 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # Initialize the map
         self.__map = Map()
+        self.__mapDialog = MapDialog(self.__map)
+
         # Initialize the robot
         self.__robot = SimRobot(0, -120, self.__map)
         # Let the graphicMgr handle designing the scene and robot
         self.__graphicsMgr = GraphicsMgr(self.__scene, self.__robot, self.__map)
+
+        # self.__simExplAlgo = SimExplorationAlgo(self.__robot)
 
         # Connect the signal and slots for the buttons
         # These 4 signal and slot is for testing robot purposes
@@ -43,6 +49,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnBackward.clicked.connect(self.btnBackwardClicked)
         self.btnRotateRight.clicked.connect(self.btnRotateRightClicked)
         self.btnRotateLeft.clicked.connect(self.btnRotateLeftClicked)
+
+        self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
+        self.btnLoadMap.clicked.connect(self.btnLoadMapClicked)
 
     @pyqtSlot()
     def btnForwardClicked(self):
@@ -63,3 +72,11 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     def btnRotateLeftClicked(self):
         self.__robot.rotateRobotLeft()
         self.__robot.sense()
+
+    @pyqtSlot()
+    def btnSimExplClicked(self):
+        self.__simExplAlgo.start()
+
+    @pyqtSlot()
+    def btnLoadMapClicked(self):
+        self.__mapDialog.exec()
