@@ -35,6 +35,8 @@ class SquareTile(QGraphicsRectItem):
             self.setBrush(QBrush(Qt.black))
         elif self.__tileType == TileType.START:
             self.setBrush(QBrush(Qt.blue))
+        elif self.__tileType == TileType.WAYPOINT:
+            self.setBrush(QBrush(Qt.yellow))
         else:
             self.setBrush(QBrush(Qt.green))
 

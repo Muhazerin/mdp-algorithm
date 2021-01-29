@@ -1,3 +1,5 @@
+# TODO: Add long range sensor
+
 import constants
 from constants import SensorLocation, Bearing
 

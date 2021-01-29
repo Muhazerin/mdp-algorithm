@@ -9,7 +9,7 @@
 # Everything above
 #   Image Recognition (on hold)
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtWidgets import QMainWindow, QGraphicsScene
+from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
 
 from graphicsMgr import GraphicsMgr
 from robot import SimRobot
@@ -52,6 +52,10 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
         self.btnLoadMap.clicked.connect(self.btnLoadMapClicked)
+        self.btnResetMap.clicked.connect(self.btnResetMapClicked)
+        self.btnSetWaypoint.clicked.connect(self.btnSetWaypointClicked)
+
+        self.__mapDialog.accepted.connect(self.enableWaypoint)
 
     @pyqtSlot()
     def btnForwardClicked(self):
@@ -80,3 +84,29 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     @pyqtSlot()
     def btnLoadMapClicked(self):
         self.__mapDialog.exec()
+
+
+    @pyqtSlot()
+    def btnResetMapClicked(self):
+        self.__map.resetMap()
+        self.leFPWaypoint.setText("")
+        self.leFPWaypoint.setEnabled(False)
+        self.btnSetWaypoint.setEnabled(False)
+
+    @pyqtSlot()
+    def enableWaypoint(self):
+        self.leFPWaypoint.setEnabled(True)
+        self.btnSetWaypoint.setEnabled(True)
+
+    @pyqtSlot()
+    def btnSetWaypointClicked(self):
+        try:
+            if self.leFPWaypoint.text() == "":
+                QMessageBox.critical(self, self.windowTitle(), "Empty Waypoint")
+            else:
+                coordinate = self.leFPWaypoint.text().split(",")
+                coordinate[0] = int(coordinate[0]) - 1
+                coordinate[1] = int(coordinate[1]) - 1
+                self.__map.waypoint = coordinate
+        except Exception as err:
+            print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Errror msg: {err}")

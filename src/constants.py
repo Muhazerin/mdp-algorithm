@@ -44,8 +44,9 @@ class TileType(IntEnum):
     UNEXPLORED = 1
     EXPLORED = 2
     OBSTACLE = 3
-    START = 4
-    GOAL = 5
+    WAYPOINT = 4
+    START = 5
+    GOAL = 6
 
 
 class SensorLocation(IntEnum):

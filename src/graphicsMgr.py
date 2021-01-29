@@ -14,7 +14,7 @@ class GraphicsMgr:
 
         # Add the robot to the scene
         self.__scene.addItem(self.__robot)
-        self.__robot.sense()
+        # self.__robot.sense()
 
     # Initialize the square tiles on the map and the robot
     def initMap(self):
