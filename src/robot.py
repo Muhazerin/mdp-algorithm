@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QRectF, Qt
+from PyQt5.QtCore import QRectF, Qt, QMutex, QMutexLocker
 from PyQt5.QtWidgets import QGraphicsEllipseItem
 from constants import Bearing
 from sensor import RobotSensorConfiguration
@@ -70,13 +70,19 @@ class Robot(QGraphicsEllipseItem):
 class SimRobot(Robot):
     def __init__(self, x, y, map):
         super(SimRobot, self).__init__(x, y)
-        self.__sensorConfig = RobotSensorConfiguration(map)
+        self.__mutex = QMutex()
+        self.__map = map
+        self.__sensorConfig = RobotSensorConfiguration(self.__map)
+
+    def resetPos(self):
+        self.bearing = Bearing.NORTH
+        self.moveRobot(0, -120)
 
     def moveRobot(self, x, y):
         if (-120 >= y >= -800) and (0 <= x <= 480):
             self.x = x
             self.y = y
-            super(SimRobot, self).setRect(self.x, self.y, self.robotSize, self.robotSize)
+            self.setRect(self.x, self.y, self.robotSize, self.robotSize)
 
     def moveRobotForward(self):
         if self.bearing == Bearing.NORTH:
@@ -116,3 +122,151 @@ class SimRobot(Robot):
 
     def sense(self):
         self.__sensorConfig.senseAll(self.bearing, self.x, self.y)
+
+    def noOfLeftMove(self):
+        with QMutexLocker(self.__mutex):
+            x = int(self.x / 40)
+            y = int(abs(self.y) / 40)
+
+            topLeftCorner = [x, y]
+            topRightCorner = [x + 3, y - 1]
+            bottomLeftCorner = [x - 1, y - 3]
+            bottomRightCorner = [x + 2, y - 4]
+
+            emptyLeft = 0
+
+            if self.bearing == Bearing.NORTH:
+                obstacle = False
+                for col in range(bottomLeftCorner[0], bottomLeftCorner[0] - 2, -1):
+                    if col < 0:   # out of arena range
+                        break
+                    else:   # check if there is obstacle on the left
+                        for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyLeft = emptyLeft + 1
+            elif self.bearing == Bearing.EAST:
+                obstacle = False
+                for row in range(topLeftCorner[1], topLeftCorner[1] + 2):
+                    if row > 19:    # out of arena range
+                        break
+                    else:   # check if there is obstacle on the left
+                        for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyLeft = emptyLeft + 1
+            elif self.bearing == Bearing.SOUTH:
+                obstacle = False
+                for col in range(topRightCorner[0], topRightCorner[0] + 2):
+                    if col > 14:    # out of arena range
+                        break
+                    else:   # check if there is obstacle on the left
+                        for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyLeft = emptyLeft + 1
+            elif self.bearing == Bearing.WEST:
+                obstacle = False
+                for row in range(bottomRightCorner[1], bottomRightCorner[1] - 2, -1):
+                    if row < 0:     # out of arena range
+                        break
+                    else:   # check if there is obstacle on the left
+                        for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyLeft = emptyLeft + 1
+            return emptyLeft
+
+    def noOfForwardMove(self):
+        with QMutexLocker(self.__mutex):
+            x = int(self.x / 40)
+            y = int(abs(self.y) / 40)
+
+            topLeftCorner = [x, y]
+            topRightCorner = [x + 3, y - 1]
+            bottomLeftCorner = [x - 1, y - 3]
+            bottomRightCorner = [x + 2, y - 4]
+
+            emptyForward = 0
+
+            if self.bearing == Bearing.NORTH:
+                obstacle = False
+                for row in range(topLeftCorner[1], topLeftCorner[1] + 2):
+                    if row > 19:
+                        break
+                    else:
+                        for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyForward = emptyForward + 1
+            elif self.bearing == Bearing.EAST:
+                obstacle = False
+                for col in range(topRightCorner[0], topRightCorner[0] + 2):
+                    if col > 14:
+                        break
+                    else:
+                        for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyForward = emptyForward + 1
+            elif self.bearing == Bearing.SOUTH:
+                obstacle = False
+                for row in range(bottomRightCorner[1], bottomRightCorner[1] - 2, -1):
+                    if row < 0:
+                        break
+                    else:
+                        for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyForward = emptyForward + 1
+            elif self.bearing == Bearing.WEST:
+                obstacle = False
+                for col in range(bottomLeftCorner[0], bottomLeftCorner[0] - 2, -1):
+                    if col < 0:
+                        break
+                    else:
+                        for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
+                            if not obstacle:
+                                if self.__map.obstacleMap[row][col] == 1:
+                                    obstacle = True
+                                    break
+                            else:
+                                break
+                        if not obstacle:
+                            emptyForward = emptyForward + 1
+            return emptyForward

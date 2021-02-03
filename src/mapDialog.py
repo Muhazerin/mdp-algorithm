@@ -1,11 +1,12 @@
 # I hardcoded the file location here
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, pyqtSignal
 from PyQt5.QtWidgets import QDialog, QFileDialog
 
 from ui import mapdialog
 
 
 class MapDialog(QDialog, mapdialog.Ui_mapDialog):
+    enableWaypointSignal = pyqtSignal()
     def __init__(self, map):
         super(MapDialog, self).__init__()
         self.setupUi(self)
@@ -16,6 +17,7 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
         self.btnP1LoadFile.clicked.connect(self.btnP1LoadFileClicked)
         self.btnP2LoadFile.clicked.connect(self.btnP2LoadFileClicked)
         self.btnLoadFastPath.clicked.connect(self.btnLoadFastPathClicked)
+        self.btnLoadExpl.clicked.connect(self.btnLoadExplClicked)
 
         self.__hexConvertorDict = {
             '0': '0000',
@@ -91,6 +93,20 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
                     p2BinStr += self.__hexConvertorDict[c]
 
             self.__map.loadFastPathMap(p1BinStr, p2BinStr)
+            self.enableWaypointSignal.emit()
             self.accept()
         except Exception as err:
             print(f"[ERROR] mapDialog::btnLoadFastPathClicked! Error msg: {err}")
+
+    @pyqtSlot()
+    def btnLoadExplClicked(self):
+        try:
+            with open(self.__p2FileName, 'r') as f:
+                p2HexStr = f.read()
+                p2BinStr = ''
+                for c in p2HexStr:
+                    p2BinStr += self.__hexConvertorDict[c]
+            self.__map.loadExplMap(p2BinStr)
+            self.accept()
+        except Exception as err:
+            print(f"[ERROR] mapDialog::btnLoadExplClicked! Error msg: {err}")

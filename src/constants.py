@@ -7,12 +7,6 @@ MIN_X = 0
 MAX_X = 14
 
 
-class AlgoStatus(IntEnum):
-    IDLE = 0
-    RUNNING = 1
-    ENDED = 3
-
-
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START
     @staticmethod
@@ -43,10 +37,11 @@ class Bearing(IntEnum):
 class TileType(IntEnum):
     UNEXPLORED = 1
     EXPLORED = 2
-    OBSTACLE = 3
-    WAYPOINT = 4
-    START = 5
-    GOAL = 6
+    UNEXPLORED_OBSTACLE = 3
+    EXPLORED_OBSTACLE = 4
+    WAYPOINT = 5
+    START = 6
+    GOAL = 7
 
 
 class SensorLocation(IntEnum):

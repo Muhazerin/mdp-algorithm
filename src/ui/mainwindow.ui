@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>839</width>
+    <width>923</width>
     <height>851</height>
    </rect>
   </property>
@@ -65,44 +65,79 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="btnForward">
-        <property name="text">
-         <string>Forward</string>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="vlSPS">
+        <item>
+         <widget class="QLabel" name="lblSPS">
+          <property name="text">
+           <string>Steps Per Second:</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="leSPS">
+          <property name="text">
+           <string>-1</string>
+          </property>
+          <property name="placeholderText">
+           <string>no of steps per seconds</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
-       <widget class="QPushButton" name="btnBackward">
-        <property name="text">
-         <string>Backward</string>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="vlCoverageFigure">
+        <item>
+         <widget class="QLabel" name="lblCoverageFigure">
+          <property name="text">
+           <string>Coverage Figure (%): </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="leCoverageFigure">
+          <property name="text">
+           <string>100</string>
+          </property>
+          <property name="placeholderText">
+           <string/>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
-       <widget class="QPushButton" name="btnRotateLeft">
-        <property name="text">
-         <string>Rotate Left</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="btnRotateRight">
-        <property name="text">
-         <string>Rotate Right</string>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="vlTimeLimit">
+        <item>
+         <widget class="QLabel" name="lblTimeLimit">
+          <property name="text">
+           <string>Time Limit (seconds):</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="leTimeLimit">
+          <property name="text">
+           <string>360</string>
+          </property>
+          <property name="placeholderText">
+           <string/>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
        <widget class="QLabel" name="lblTempWaypoint">
         <property name="text">
-         <string>Temporary waypoint: (To be removed later)</string>
+         <string>Temporary waypoint: (For fastest path simulation)</string>
         </property>
        </widget>
       </item>
       <item>
        <layout class="QHBoxLayout" name="hlTempWaypoint">
         <item>
-         <widget class="QLineEdit" name="leFPWaypoint">
+         <widget class="QLineEdit" name="leXWaypoint">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -113,7 +148,17 @@
            </sizepolicy>
           </property>
           <property name="placeholderText">
-           <string>x,y</string>
+           <string>x</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="leYWaypoint">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="placeholderText">
+           <string>y</string>
           </property>
          </widget>
         </item>
@@ -202,6 +247,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnSimFastPath">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -215,6 +263,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnSimImgRecog">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -235,6 +286,22 @@
        </layout>
       </item>
       <item>
+       <widget class="QPushButton" name="btnGMD">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Generate Map Descriptor</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="hlRobotConnection">
         <item>
          <widget class="QLabel" name="lblConnectRobot">
@@ -253,7 +320,7 @@
        </layout>
       </item>
       <item>
-       <widget class="QLineEdit" name="leRobotConnection">
+       <widget class="QLineEdit" name="leRobotConnectionStatus">
         <property name="readOnly">
          <bool>true</bool>
         </property>
@@ -268,7 +335,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>839</width>
+     <width>923</width>
      <height>18</height>
     </rect>
    </property>

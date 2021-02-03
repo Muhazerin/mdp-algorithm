@@ -1,20 +1,18 @@
 # TODO:
-# Left wall hug
-# 1. Create the simulator
-# GUI - pyqt (to be implemented)
-# Algo to be implemented:
-#   Fastest Path (A* Algorithm)
-#   Explore (left wall)
-# Code the actual thing
-# Everything above
-#   Image Recognition (on hold)
-from PyQt5.QtCore import pyqtSlot
+#  Coverage figure exploration
+#  SPS and time-limited exploration
+#  Algo to be implemented:
+#    Fastest Path (A* Algorithm)
+#    Explore (left wall)
+#  Code the actual thing
+#  Everything above
+#    Image Recognition (on hold)
+from PyQt5.QtCore import pyqtSlot, QThread
 from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
 
 from graphicsMgr import GraphicsMgr
-from robot import SimRobot
 from map import Map
-# from simExplorationAlgo import SimExplorationAlgo
+from simExplAlgo import SimExplAlgo
 from ui import mainwindow
 from mapDialog import MapDialog
 
@@ -23,6 +21,15 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     def __init__(self):
         super(MDPAlgoApp, self).__init__()
         self.setupUi(self)
+        # Start and Goal coordinate
+        self.__dontTouchMapList = [
+            [0, 0], [1, 0], [2, 0],
+            [0, 1], [1, 1], [2, 1],
+            [0, 2], [1, 2], [2, 2],
+            [12, 17], [13, 17], [14, 17],
+            [12, 18], [13, 18], [14, 18],
+            [12, 19], [13, 19], [14, 19],
+        ]
 
         # Disable app from maximising
         self.setMaximumSize(self.width(), self.height())
@@ -34,52 +41,35 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # Initialize the map
         self.__map = Map()
+        # Initialise the mapDialog. This allows the user to load map from disk
         self.__mapDialog = MapDialog(self.__map)
 
-        # Initialize the robot
-        self.__robot = SimRobot(0, -120, self.__map)
         # Let the graphicMgr handle designing the scene and robot
-        self.__graphicsMgr = GraphicsMgr(self.__scene, self.__robot, self.__map)
+        self.__graphicsMgr = GraphicsMgr(self.__scene, self.__map)
 
-        # self.__simExplAlgo = SimExplorationAlgo(self.__robot)
-
-        # Connect the signal and slots for the buttons
-        # These 4 signal and slot is for testing robot purposes
-        self.btnForward.clicked.connect(self.btnForwardClicked)
-        self.btnBackward.clicked.connect(self.btnBackwardClicked)
-        self.btnRotateRight.clicked.connect(self.btnRotateRightClicked)
-        self.btnRotateLeft.clicked.connect(self.btnRotateLeftClicked)
-
-        self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
+        # MapDialog settings signal and slot
         self.btnLoadMap.clicked.connect(self.btnLoadMapClicked)
         self.btnResetMap.clicked.connect(self.btnResetMapClicked)
         self.btnSetWaypoint.clicked.connect(self.btnSetWaypointClicked)
+        self.__mapDialog.enableWaypointSignal.connect(self.enableWaypoint)
 
-        self.__mapDialog.accepted.connect(self.enableWaypoint)
+        # simExplAlgo
+        self.__thread = QThread()
+        self.__simExplAlgo = SimExplAlgo(self.__graphicsMgr.getRobot())
+        self.__simExplAlgo.moveToThread(self.__thread)
+        self.__thread.started.connect(self.__simExplAlgo.run)
+        self.__simExplAlgo.finished.connect(self.__thread.quit)
+        self.__simExplAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
+        self.__simExplAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
+        self.__simExplAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
+        self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
+        self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
 
-    @pyqtSlot()
-    def btnForwardClicked(self):
-        self.__robot.moveRobotForward()
-        self.__robot.sense()
-
-    @pyqtSlot()
-    def btnBackwardClicked(self):
-        self.__robot.moveRobotBackward()
-        self.__robot.sense()
-
-    @pyqtSlot()
-    def btnRotateRightClicked(self):
-        self.__robot.rotateRobotRight()
-        self.__robot.sense()
-
-    @pyqtSlot()
-    def btnRotateLeftClicked(self):
-        self.__robot.rotateRobotLeft()
-        self.__robot.sense()
+        self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
 
     @pyqtSlot()
     def btnSimExplClicked(self):
-        self.__simExplAlgo.start()
+        self.__thread.start()
 
     @pyqtSlot()
     def btnLoadMapClicked(self):
@@ -89,24 +79,46 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     @pyqtSlot()
     def btnResetMapClicked(self):
         self.__map.resetMap()
-        self.leFPWaypoint.setText("")
-        self.leFPWaypoint.setEnabled(False)
+        self.leXWaypoint.setText("")
+        self.leYWaypoint.setText("")
+
+        self.leXWaypoint.setEnabled(False)
+        self.leYWaypoint.setEnabled(False)
         self.btnSetWaypoint.setEnabled(False)
+
+        self.btnSimExpl.setEnabled(True)
+        self.btnSimFastPath.setEnabled(False)
+        self.__graphicsMgr.resetRobot()
 
     @pyqtSlot()
     def enableWaypoint(self):
-        self.leFPWaypoint.setEnabled(True)
+        self.leXWaypoint.setEnabled(True)
+        self.leYWaypoint.setEnabled(True)
         self.btnSetWaypoint.setEnabled(True)
+        self.btnSimExpl.setEnabled(False)
+
+    def waypointError(self, errorMsg):
+        self.__map.clearWaypoint()
+        self.btnSimFastPath.setEnabled(False)
+        QMessageBox.critical(self, self.windowTitle(), errorMsg)
 
     @pyqtSlot()
     def btnSetWaypointClicked(self):
         try:
-            if self.leFPWaypoint.text() == "":
-                QMessageBox.critical(self, self.windowTitle(), "Empty Waypoint")
+            if self.leXWaypoint.text() == "" or self.leYWaypoint.text() == "":
+                QMessageBox.critical(self, self.windowTitle(), "Invalid Waypoint")
             else:
-                coordinate = self.leFPWaypoint.text().split(",")
-                coordinate[0] = int(coordinate[0]) - 1
-                coordinate[1] = int(coordinate[1]) - 1
-                self.__map.waypoint = coordinate
+                coordinate = [int(self.leXWaypoint.text()) - 1, int(self.leYWaypoint.text()) - 1]
+
+                if coordinate[0] < 0 or coordinate[1] < 0 or coordinate[0] > 14 or coordinate[1] > 14:
+                    self.waypointError("Waypoint out of bound")
+                elif coordinate in self.__dontTouchMapList:
+                    self.waypointError("Unable to set waypoint on START/GOAL")
+                elif self.__map.obstacleMap[coordinate[1]][coordinate[0]] == 1:
+                    self.waypointError("Unable to set waypoint on obstacle")
+                else:
+                    self.__map.clearWaypoint()
+                    self.__map.waypoint = coordinate
+                    self.btnSimFastPath.setEnabled(True)
         except Exception as err:
             print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Errror msg: {err}")

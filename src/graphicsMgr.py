@@ -1,20 +1,30 @@
+from PyQt5.QtCore import QObject, pyqtSlot
+
 from squareTile import SquareTile
 from constants import TileType, MapConstant
 
 
 # Handles the graphics/drawing that user see on the app
-class GraphicsMgr:
-    def __init__(self, scene, robot, map):
+from src.robot import SimRobot
+
+
+class GraphicsMgr(QObject):
+    def __init__(self, scene, map):
+        super(GraphicsMgr, self).__init__()
         self.__scene = scene
-        self.__robot = robot
+        self.__map = map
+        self.__robot = SimRobot(0, -120, self.__map)
         self.__dontTouchMapList = MapConstant.getMapStartList() + MapConstant.getMapGoalList()
-        map.addObserver(self)
+        self.__map.addObserver(self)
 
         self.initMap()
 
         # Add the robot to the scene
         self.__scene.addItem(self.__robot)
         # self.__robot.sense()
+
+    def getRobot(self):
+        return self.__robot
 
     # Initialize the square tiles on the map and the robot
     def initMap(self):
@@ -24,7 +34,14 @@ class GraphicsMgr:
         # down to up is +y to -y
         for y in range(-40, -801, -40):
             for x in range(0, 561, 40):
-                square_tile = SquareTile(x, y, TileType.UNEXPLORED)
+                row = int(abs(y) / 40) - 1
+                col = int(x / 40)
+                tt = None
+                if self.__map.simExplObstacleMap[row][col] == 0:
+                    tt = TileType.UNEXPLORED
+                elif self.__map.simExplObstacleMap[row][col] == 1:
+                    tt = TileType.UNEXPLORED_OBSTACLE
+                square_tile = SquareTile(x, y, tt)
                 self.__scene.addItem(square_tile)
 
         # Retrieve the tiles from the scene in descending order (0 = descending order)
@@ -42,3 +59,30 @@ class GraphicsMgr:
         if index not in self.__dontTouchMapList:
             self.__tileList[index].tileType = tt
 
+    def resetRobot(self):
+        self.__robot.resetPos()
+
+    @pyqtSlot()
+    def moveSimRobotForward(self):
+        print('SimRobot Move Forward')
+        self.__robot.moveRobotForward()
+
+    @pyqtSlot()
+    def moveSimRobotBackward(self):
+        print('SimRobot Move Backward')
+        self.__robot.moveRobotBackward()
+
+    @pyqtSlot()
+    def rotateSimRobotRight(self):
+        print('SimRobot Rotate Right')
+        self.__robot.rotateRobotRight()
+
+    @pyqtSlot()
+    def rotateSimRobotLeft(self):
+        print('SimRobot Rotate Left')
+        self.__robot.rotateRobotLeft()
+
+    @pyqtSlot()
+    def simRobotSense(self):
+        print('SimRobot Sensing')
+        self.__robot.sense()
