@@ -1,7 +1,8 @@
-from PyQt5.QtCore import QObject, pyqtSlot
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
 
 from squareTile import SquareTile
 from constants import TileType, MapConstant
+from robotObject import RobotObject
 
 
 # Handles the graphics/drawing that user see on the app
@@ -9,13 +10,18 @@ from src.robot import SimRobot
 
 
 class GraphicsMgr(QObject):
+    signalFrontLeft = pyqtSignal(dict, list)
+
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
         self.__scene = scene
         self.__map = map
-        self.__robot = SimRobot(0, -120, self.__map)
+        self.__robotObject = RobotObject()
+        self.__robot = SimRobot(0, -120, self.__map, self.__robotObject)
         self.__dontTouchMapList = MapConstant.getMapStartList() + MapConstant.getMapGoalList()
         self.__map.addObserver(self)
+
+        self.__robotObject.signalFrontLeft.connect(self.emitFrontLeftSignal)
 
         self.initMap()
 
@@ -86,3 +92,7 @@ class GraphicsMgr(QObject):
     def simRobotSense(self):
         print('SimRobot Sensing')
         self.__robot.sense()
+
+    @pyqtSlot(dict, list)
+    def emitFrontLeftSignal(self, frontLeftDict, allCorners):
+        self.signalFrontLeft.emit(frontLeftDict, allCorners)

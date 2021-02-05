@@ -68,10 +68,11 @@ class Robot(QGraphicsEllipseItem):
 
 # A simulated robot
 class SimRobot(Robot):
-    def __init__(self, x, y, map):
+    def __init__(self, x, y, map, robotObject):
         super(SimRobot, self).__init__(x, y)
         self.__mutex = QMutex()
         self.__map = map
+        self.__robotObject = robotObject
         self.__sensorConfig = RobotSensorConfiguration(self.__map)
 
     def resetPos(self):
@@ -122,151 +123,88 @@ class SimRobot(Robot):
 
     def sense(self):
         self.__sensorConfig.senseAll(self.bearing, self.x, self.y)
+        self.checkFrontLeft()
 
-    def noOfLeftMove(self):
-        with QMutexLocker(self.__mutex):
-            x = int(self.x / 40)
-            y = int(abs(self.y) / 40)
+    # emits a signal with a dictionary
+    # { 'F' : <0,1>, 'L' : <0,1> } 0 -> No obstacle, 1 -> obstacle
+    def checkFrontLeft(self):
+        x = int(self.x / 40)
+        y = int(abs(self.y) / 40)
 
-            topLeftCorner = [x, y]
-            topRightCorner = [x + 3, y - 1]
-            bottomLeftCorner = [x - 1, y - 3]
-            bottomRightCorner = [x + 2, y - 4]
+        topLeftCorner = [x, y]
+        topRightCorner = [x + 3, y - 1]
+        bottomLeftCorner = [x - 1, y - 3]
+        bottomRightCorner = [x + 2, y - 4]
+        allCorners = [topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner]
 
-            emptyLeft = 0
+        frontLeftDict = {'F': 0, 'L': 0}
 
-            if self.bearing == Bearing.NORTH:
-                obstacle = False
-                for col in range(bottomLeftCorner[0], bottomLeftCorner[0] - 2, -1):
-                    if col < 0:   # out of arena range
+        if self.bearing == Bearing.NORTH:
+            # Check the front
+            if topLeftCorner[1] > 19:  # out of arena range
+                frontLeftDict['F'] = 1
+            else:
+                for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
+                    if self.__map.obstacleMap[topLeftCorner[1]][col] == 1:
+                        frontLeftDict['F'] = 1
                         break
-                    else:   # check if there is obstacle on the left
-                        for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyLeft = emptyLeft + 1
-            elif self.bearing == Bearing.EAST:
-                obstacle = False
-                for row in range(topLeftCorner[1], topLeftCorner[1] + 2):
-                    if row > 19:    # out of arena range
+            # Check the left
+            if bottomLeftCorner[0] < 0:  # out of arena range
+                frontLeftDict['L'] = 1
+            else:
+                for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
+                    if self.__map.obstacleMap[row][bottomLeftCorner[0]] == 1:
+                        frontLeftDict['L'] = 1
                         break
-                    else:   # check if there is obstacle on the left
-                        for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyLeft = emptyLeft + 1
-            elif self.bearing == Bearing.SOUTH:
-                obstacle = False
-                for col in range(topRightCorner[0], topRightCorner[0] + 2):
-                    if col > 14:    # out of arena range
+        elif self.bearing == Bearing.EAST:
+            # Check the front
+            if topRightCorner[0] > 14:  # out of arena range
+                frontLeftDict['F'] = 1
+            else:
+                for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
+                    if self.__map.obstacleMap[row][topRightCorner[0]] == 1:
+                        frontLeftDict['F'] = 1
                         break
-                    else:   # check if there is obstacle on the left
-                        for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyLeft = emptyLeft + 1
-            elif self.bearing == Bearing.WEST:
-                obstacle = False
-                for row in range(bottomRightCorner[1], bottomRightCorner[1] - 2, -1):
-                    if row < 0:     # out of arena range
+            # Check the left
+            if topLeftCorner[1] > 19:  # out of arena range
+                frontLeftDict['L'] = 1
+            else:
+                for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
+                    if self.__map.obstacleMap[topLeftCorner[1]][col] == 1:
+                        frontLeftDict['L'] = 1
                         break
-                    else:   # check if there is obstacle on the left
-                        for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyLeft = emptyLeft + 1
-            return emptyLeft
-
-    def noOfForwardMove(self):
-        with QMutexLocker(self.__mutex):
-            x = int(self.x / 40)
-            y = int(abs(self.y) / 40)
-
-            topLeftCorner = [x, y]
-            topRightCorner = [x + 3, y - 1]
-            bottomLeftCorner = [x - 1, y - 3]
-            bottomRightCorner = [x + 2, y - 4]
-
-            emptyForward = 0
-
-            if self.bearing == Bearing.NORTH:
-                obstacle = False
-                for row in range(topLeftCorner[1], topLeftCorner[1] + 2):
-                    if row > 19:
+        elif self.bearing == Bearing.SOUTH:
+            # Check the front
+            if bottomRightCorner[1] < 0:  # out of arena range
+                frontLeftDict['F'] = 1
+            else:
+                for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
+                    if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
+                        frontLeftDict['F'] = 1
                         break
-                    else:
-                        for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyForward = emptyForward + 1
-            elif self.bearing == Bearing.EAST:
-                obstacle = False
-                for col in range(topRightCorner[0], topRightCorner[0] + 2):
-                    if col > 14:
+            # Check the left
+            if topRightCorner[0] > 14:  # out of arena range
+                frontLeftDict['L'] = 1
+            else:
+                for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
+                    if self.__map.obstacleMap[row][topRightCorner[0]] == 1:
+                        frontLeftDict['L'] = 1
                         break
-                    else:
-                        for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyForward = emptyForward + 1
-            elif self.bearing == Bearing.SOUTH:
-                obstacle = False
-                for row in range(bottomRightCorner[1], bottomRightCorner[1] - 2, -1):
-                    if row < 0:
+        elif self.bearing == Bearing.WEST:
+            # Check the front
+            if bottomLeftCorner[0] < 0:  # out of arena range
+                frontLeftDict['F'] = 1
+            else:
+                for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
+                    if self.__map.obstacleMap[row][bottomLeftCorner[0]] == 1:
+                        frontLeftDict['F'] = 1
                         break
-                    else:
-                        for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyForward = emptyForward + 1
-            elif self.bearing == Bearing.WEST:
-                obstacle = False
-                for col in range(bottomLeftCorner[0], bottomLeftCorner[0] - 2, -1):
-                    if col < 0:
+            # Check the left
+            if bottomRightCorner[1] < 0:  # out of arena range
+                frontLeftDict['L'] = 1
+            else:
+                for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
+                    if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
+                        frontLeftDict['L'] = 1
                         break
-                    else:
-                        for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
-                            if not obstacle:
-                                if self.__map.obstacleMap[row][col] == 1:
-                                    obstacle = True
-                                    break
-                            else:
-                                break
-                        if not obstacle:
-                            emptyForward = emptyForward + 1
-            return emptyForward
+        self.__robotObject.emitFrontLeft(frontLeftDict, allCorners)

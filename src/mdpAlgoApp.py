@@ -55,7 +55,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # simExplAlgo
         self.__thread = QThread()
-        self.__simExplAlgo = SimExplAlgo(self.__graphicsMgr.getRobot())
+        self.__simExplAlgo = SimExplAlgo()
         self.__simExplAlgo.moveToThread(self.__thread)
         self.__thread.started.connect(self.__simExplAlgo.run)
         self.__simExplAlgo.finished.connect(self.__thread.quit)
@@ -64,6 +64,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__simExplAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
         self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
         self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
+        self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
+        self.__simExplAlgo.finished.connect(self.__thread.quit)
 
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
 
@@ -121,4 +123,4 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
                     self.__map.waypoint = coordinate
                     self.btnSimFastPath.setEnabled(True)
         except Exception as err:
-            print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Errror msg: {err}")
+            print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Error msg: {err}")

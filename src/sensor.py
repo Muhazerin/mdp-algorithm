@@ -8,7 +8,7 @@ class RobotSensorConfiguration:
             SimShortRangeSensor(SensorLocation.FRONT, 0, map),
             SimShortRangeSensor(SensorLocation.FRONT, 1, map),
             SimShortRangeSensor(SensorLocation.FRONT, 2, map),
-            SimShortRangeSensor(SensorLocation.LEFT, 1, map),
+            SimShortRangeSensor(SensorLocation.LEFT, 0, map),
             SimShortRangeSensor(SensorLocation.LEFT, 2, map),
             SimLongRangeSensor(SensorLocation.RIGHT, 2, map)
         ]
