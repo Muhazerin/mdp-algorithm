@@ -6,7 +6,7 @@ from robotObject import RobotObject
 
 
 # Handles the graphics/drawing that user see on the app
-from src.robot import SimRobot
+from robot import SimRobot
 
 
 class GraphicsMgr(QObject):
