@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
 from graphicsMgr import GraphicsMgr
 from map import Map
 from simExplAlgo import SimExplAlgo
+from simFastPathAlgo import SimFastPathAlgo
 from ui import mainwindow
 from mapDialog import MapDialog
 
@@ -67,11 +68,31 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
         self.__simExplAlgo.finished.connect(self.__thread.quit)
 
+        # simFastPathAlgo
+        self.__pathThread = QThread()
+        self.__simFastPathAlgo = SimFastPathAlgo()
+        self.__simFastPathAlgo.moveToThread(self.__pathThread)
+        self.__pathThread.started.connect(self.__simFastPathAlgo.run)
+        self.__simFastPathAlgo.finished.connect(self.__pathThread.quit)
+        self.__simFastPathAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
+        self.__simFastPathAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
+        self.__simFastPathAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
+        self.__simFastPathAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
+        self.__simFastPathAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
+        # self.__graphicsMgr.signalFrontLeft.connect(self.__simFastPathAlgo.determineMove)
+        self.__simFastPathAlgo.finished.connect(self.__pathThread.quit)
+
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
+        self.btnSimFastPath.clicked.connect(self.btnSimFastPathClicked)
 
     @pyqtSlot()
     def btnSimExplClicked(self):
         self.__thread.start()
+
+    @pyqtSlot()
+    def btnSimFastPathClicked(self):
+        self.__pathThread.start()
+
 
     @pyqtSlot()
     def btnLoadMapClicked(self):
@@ -110,9 +131,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
             if self.leXWaypoint.text() == "" or self.leYWaypoint.text() == "":
                 QMessageBox.critical(self, self.windowTitle(), "Invalid Waypoint")
             else:
-                coordinate = [int(self.leXWaypoint.text()) - 1, int(self.leYWaypoint.text()) - 1]
+                coordinate = (int(self.leXWaypoint.text()) - 1, int(self.leYWaypoint.text()) - 1)
 
-                if coordinate[0] < 0 or coordinate[1] < 0 or coordinate[0] > 14 or coordinate[1] > 14:
+                if coordinate[0] < 0 or coordinate[1] < 0 or coordinate[0] > 14 or coordinate[1] > 19:
                     self.waypointError("Waypoint out of bound")
                 elif coordinate in self.__dontTouchMapList:
                     self.waypointError("Unable to set waypoint on START/GOAL")
@@ -121,6 +142,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
                 else:
                     self.__map.clearWaypoint()
                     self.__map.waypoint = coordinate
+                    self.__shortestPath = self.__simFastPathAlgo.gen_full_path(self.__map.obstacleMap, self.__map.waypoint)
+                    print(self.__shortestPath)
                     self.btnSimFastPath.setEnabled(True)
         except Exception as err:
             print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Error msg: {err}")
