@@ -10,7 +10,7 @@ from robot import SimRobot
 
 
 class GraphicsMgr(QObject):
-    signalFrontLeft = pyqtSignal(dict, list)
+    signalFrontLeft = pyqtSignal(dict, list, list, list, int)
 
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
@@ -93,6 +93,6 @@ class GraphicsMgr(QObject):
         print('SimRobot Sensing')
         self.__robot.sense()
 
-    @pyqtSlot(dict, list)
-    def emitFrontLeftSignal(self, frontLeftDict, allCorners):
-        self.signalFrontLeft.emit(frontLeftDict, allCorners)
+    @pyqtSlot(dict, list, list, list, int)
+    def emitFrontLeftSignal(self, frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing):
+        self.signalFrontLeft.emit(frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing)

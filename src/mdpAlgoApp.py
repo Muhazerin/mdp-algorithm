@@ -56,17 +56,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # simExplAlgo
         self.__thread = QThread()
-        self.__simExplAlgo = SimExplAlgo()
-        self.__simExplAlgo.moveToThread(self.__thread)
-        self.__thread.started.connect(self.__simExplAlgo.run)
-        self.__simExplAlgo.finished.connect(self.__thread.quit)
-        self.__simExplAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
-        self.__simExplAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
-        self.__simExplAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
-        self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
-        self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
-        self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
-        self.__simExplAlgo.finished.connect(self.__thread.quit)
+        self.__simExplAlgo = None
 
         # simFastPathAlgo
         self.__pathThread = QThread()
@@ -85,8 +75,21 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
         self.btnSimFastPath.clicked.connect(self.btnSimFastPathClicked)
 
+    # The creation of simExplAlgo is shifted here to eliminate threading errors
     @pyqtSlot()
     def btnSimExplClicked(self):
+        self.__simExplAlgo = SimExplAlgo()
+        self.__simExplAlgo.moveToThread(self.__thread)
+        self.__thread.started.connect(self.__simExplAlgo.run)
+        self.__simExplAlgo.finished.connect(self.__thread.quit)
+        self.__thread.finished.connect(self.__simExplAlgo.deleteLater)
+        self.__simExplAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
+        self.__simExplAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
+        self.__simExplAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
+        self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
+        self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
+        self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
+
         self.__thread.start()
 
     @pyqtSlot()
