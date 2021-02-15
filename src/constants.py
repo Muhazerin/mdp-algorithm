@@ -7,6 +7,17 @@ MIN_X = 0
 MAX_X = 14
 
 
+class AlgoStatus(IntEnum):
+    SEEK_GOAL = 0
+    SEEK_HOME = 1
+    FP_UNEXPLORED_SEARCH = 2
+    FP_UNEXPLORED_SEEK = 3
+    FP_UNEXPLORED_FINISHED = 4
+    FP_HOME_SEARCH = 5
+    FP_HOME_SEEK = 6
+    FP_HOME_FINISHED = 7
+
+
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START
     @staticmethod

@@ -7,7 +7,7 @@
 #  Code the actual thing
 #  Everything above
 #    Image Recognition (on hold)
-from PyQt5.QtCore import pyqtSlot, QThread
+from PyQt5.QtCore import pyqtSlot, QThread, QTimer
 from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
 
 from graphicsMgr import GraphicsMgr
@@ -58,6 +58,10 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__thread = QThread()
         self.__simExplAlgo = None
 
+        # Initialise the timer for time-limited exploration
+        self.__qTimer = QTimer()
+        self.__qTimer.setSingleShot(True)
+
         # simFastPathAlgo
         self.__pathThread = QThread()
         self.__simFastPathAlgo = SimFastPathAlgo()
@@ -80,16 +84,39 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     def btnSimExplClicked(self):
         self.__simExplAlgo = SimExplAlgo()
         self.__simExplAlgo.moveToThread(self.__thread)
+        # Signal-Slot for thread management
         self.__thread.started.connect(self.__simExplAlgo.run)
+        self.__simExplAlgo.finished.connect(lambda: print('SimExplAlgo Stopping'))
         self.__simExplAlgo.finished.connect(self.__thread.quit)
         self.__thread.finished.connect(self.__simExplAlgo.deleteLater)
+        # Signal-Slot for Exploration Robot Movement
         self.__simExplAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
         self.__simExplAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
         self.__simExplAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
         self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
         self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
         self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
+        # Signal-Slot for FastPath back to Home
+        self.__simExplAlgo.signalAstarCmd.connect(self.__graphicsMgr.interpretAstarCmd)
+        self.__graphicsMgr.signalNextAstarCmd.connect(self.__simExplAlgo.send_a_star_move_cmd_no_sense)
+        # Signal-Slot for timer timeout
+        self.__qTimer.timeout.connect(self.__simExplAlgo.timer_timeout)
 
+        if int(self.leSPS.text()) < 0:
+            self.__simExplAlgo.set_time(0.05)
+        else:
+            self.__simExplAlgo.set_time(1 / int(self.leSPS.text()))
+        if 0 <= int(self.leCoverageFigure.text()) <= 100:
+            self.__simExplAlgo.set_coverage(int(self.leCoverageFigure.text()))
+        else:
+            self.__simExplAlgo.set_coverage(100)
+        if int(self.leTimeLimit.text()) < 0:
+            self.__qTimer.setInterval(360 * 1000)
+        else:
+            self.__qTimer.setInterval(int(self.leTimeLimit.text()) * 1000)
+
+        print('Sim Exploration Start')
+        self.__qTimer.start()
         self.__thread.start()
 
     @pyqtSlot()
