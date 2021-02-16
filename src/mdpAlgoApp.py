@@ -16,6 +16,7 @@ from simExplAlgo import SimExplAlgo
 from simFastPathAlgo import SimFastPathAlgo
 from ui import mainwindow
 from mapDialog import MapDialog
+from tcpClient import TcpClient
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
@@ -78,6 +79,23 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
         self.btnSimFastPath.clicked.connect(self.btnSimFastPathClicked)
+
+        # Tcp Client Initialisation
+        self.__tcpThread = QThread()
+        self.__tcpClient = TcpClient()
+        self.__tcpClient.moveToThread(self.__tcpThread)
+        self.__tcpThread.started.connect(self.__tcpClient.start_client)
+        self.__tcpClient.finished.connect(self.__tcpThread.quit)
+        self.btnRobotConnection.clicked.connect(self.btnRobotConnectionClicked)
+        self.__tcpClient.finished.connect(lambda: self.btnRobotConnection.setText('Connect'))
+
+    @pyqtSlot()
+    def btnRobotConnectionClicked(self):
+        if self.btnRobotConnection.text() == 'Connect':
+            self.__tcpThread.start()
+            self.btnRobotConnection.setText('Disconnect')
+        else:
+            self.__tcpClient.stop_client()
 
     # The creation of simExplAlgo is shifted here to eliminate threading errors
     @pyqtSlot()
