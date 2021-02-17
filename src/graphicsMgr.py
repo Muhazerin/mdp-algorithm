@@ -19,7 +19,7 @@ class GraphicsMgr(QObject):
         self.__map = map
         self.__robotObject = RobotObject()
         self.__robot = SimRobot(0, -120, self.__map, self.__robotObject)
-        self.__dontTouchMapList = MapConstant.getMapStartList() + MapConstant.getMapGoalList()
+        self.__dontTouchMapList = MapConstant.getMapStartList()
         self.__map.addObserver(self)
 
         self.__robotObject.signalFrontLeft.connect(self.emitFrontLeftSignal)
@@ -56,7 +56,7 @@ class GraphicsMgr(QObject):
         # Color the START blue
         self.changeTile(MapConstant.getMapStartList(), TileType.START)
         # Color the GOAl green
-        self.changeTile(MapConstant.getMapGoalList(), TileType.GOAL)
+        self.changeTile(MapConstant.getMapGoalList(), TileType.UNEXPLORED_GOAL)
 
     def changeTile(self, mapList, tt):
         for i in mapList:
