@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QByteArray
 from PyQt5.QtNetwork import QTcpSocket
 from config import WIFI_IP, WIFI_PORT
 
@@ -18,18 +18,30 @@ class TcpClient(QObject):
         print(f'## Connecting to robot at IP: {WIFI_IP}, PORT: {WIFI_PORT} ##')
         self.__tcp_socket = QTcpSocket()
         self.__tcp_socket.disconnected.connect(self.connectionLost)
+        self.__tcp_socket.readyRead.connect(self.read_ready)
         self.connectionLost.connect(self.finished)
         self.connectionLost.connect(lambda: print('## Disconnected from the robot ##'))
         self.__tcp_socket.connectToHost(WIFI_IP, WIFI_PORT)
-        self.__tcp_socket.disconnectFromHost()
+        # self.__tcp_socket.disconnectFromHost()
         if not self.__tcp_socket.waitForConnected(TIMEOUT_MSEC):
             print(f'## Timeout! {TIMEOUT_MSEC/1000}s has passed and it still hasn\'t connect ##')
             self.__tcp_socket.disconnectFromHost()
             self.finished.emit()
         else:
             print(f'## Connected to robot at IP: {WIFI_IP}, PORT: {WIFI_PORT} ##')
+            print(f'Writing to rpi')
+            try:
+                self.__tcp_socket.write(QByteArray().append('From the algo'))
+            except Exception as err:
+                print(f'Error: {err}')
+            print('after writing to rpi')
 
     def stop_client(self):
         if self.__tcp_socket is not None:
             self.__tcp_socket.disconnectFromHost()
             self.finished.emit()
+
+    @pyqtSlot()
+    def read_ready(self):
+        data = self.__tcp_socket.readAll()
+        print(f'Data: {str(data).strip()}')
