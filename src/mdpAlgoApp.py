@@ -1,25 +1,38 @@
 # TODO:
-#  Coverage figure exploration
-#  SPS and time-limited exploration
 #  Algo to be implemented:
 #    Fastest Path (A* Algorithm)
-#    Explore (left wall)
 #  Code the actual thing
 #  Everything above
-#    Image Recognition (on hold)
-from PyQt5.QtCore import pyqtSlot, QThread, QTimer
+#    Image Recognition exploration
+
+# TODO: Real Exploration & Fast Path algorithm for the real robot
+#  1. real algo class (realAlgo)
+#  2. this class handles the starting of the real algo thread
+#   (android press start expl, rpi receive and tell algo to start expl)
+#  3. Another robot class that updates the pos and obs in actual map onto the simulator
+#  Steps
+#   tcpClient pass msg to and from robot and realAlgo
+#   realAlgo tells robotClass to update map. realRobotClass returns the updated map to realAlgo
+#   realAlgo sends cmd to tcpClient to move the robot
+
+
+from PyQt5.QtCore import pyqtSlot, QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
 
 from graphicsMgr import GraphicsMgr
 from map import Map
 from simExplAlgo import SimExplAlgo
 from simFastPathAlgo import SimFastPathAlgo
+from simImgRecogAlgo import SimImgRecogAlgo
 from ui import mainwindow
 from mapDialog import MapDialog
 from tcpClient import TcpClient
+from actualExplAlgo import ActlExplAlgo
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
+    signalSendMsg = pyqtSignal(str)
+
     def __init__(self):
         super(MDPAlgoApp, self).__init__()
         self.setupUi(self)
@@ -78,6 +91,10 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__thread = QThread()
         self.__simExplAlgo = None
 
+        # simImgRecogAlgo
+        self.__imgThread = QThread()
+        self.__simImgRecogAlgo = None
+
         # Initialise the timer for time-limited exploration
         self.__qTimer = QTimer()
         self.__qTimer.setSingleShot(True)
@@ -98,6 +115,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         self.btnSimExpl.clicked.connect(self.btnSimExplClicked)
         self.btnSimFastPath.clicked.connect(self.btnSimFastPathClicked)
+        self.btnSimImgRecog.clicked.connect(self.btnSimImgRecogClicked)
 
         # Tcp Client Initialisation
         self.__tcpThread = QThread()
@@ -107,6 +125,40 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__tcpClient.finished.connect(self.__tcpThread.quit)
         self.btnRobotConnection.clicked.connect(self.btnRobotConnectionClicked)
         self.__tcpClient.finished.connect(lambda: self.btnRobotConnection.setText('Connect'))
+        self.__tcpClient.finished.connect(self.disableSendMsg)
+        self.__tcpClient.connected.connect(self.enableSendMsg)
+        self.__tcpClient.interpretCmd.connect(self.__graphicsMgr.interpretCmd)
+
+        # Actual Exploration Algo
+        self.__explThread = QThread()
+        self.__actlExplAlgo = ActlExplAlgo()
+
+        # TODO: Remove this after testing
+        self.leMsg.setEnabled(False)
+        self.btnMsg.setEnabled(False)
+        self.btnMsg.clicked.connect(self.btnSendMsgClicked)
+        self.signalSendMsg.connect(self.__tcpClient.send_message)
+
+    # TODO: Remove this after testing
+    @pyqtSlot()
+    def btnSendMsgClicked(self):
+        if self.leMsg.text() != "":
+            print(f'Sending msg: {self.leMsg.text()}')
+            self.signalSendMsg.emit(self.leMsg.text())
+        else:
+            print("Empty message")
+
+    # TODO: Remove this after testing
+    @pyqtSlot()
+    def enableSendMsg(self):
+        self.leMsg.setEnabled(True)
+        self.btnMsg.setEnabled(True)
+
+    # TODO: Remove this after testing
+    @pyqtSlot()
+    def disableSendMsg(self):
+        self.leMsg.setEnabled(False)
+        self.btnMsg.setEnabled(False)
 
     @pyqtSlot()
     def btnRobotConnectionClicked(self):
@@ -115,6 +167,32 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
             self.btnRobotConnection.setText('Disconnect')
         else:
             self.__tcpClient.stop_client()
+
+    @pyqtSlot()
+    def btnSimImgRecogClicked(self):
+        self.__simImgRecogAlgo = SimImgRecogAlgo()
+        self.__simImgRecogAlgo.moveToThread(self.__imgThread)
+        # Signal-Slot for thread management
+        self.__imgThread.started.connect(self.__simImgRecogAlgo.run)
+        self.__simImgRecogAlgo.finished.connect(lambda: print('SimImgRecogAlgo Stopping'))
+        self.__simImgRecogAlgo.finished.connect(self.__imgThread.quit)
+        self.__imgThread.finished.connect(self.__simImgRecogAlgo.deleteLater)
+        # Signal-Slot for sim exploration movement
+        self.__simImgRecogAlgo.signalSense.connect(self.__graphicsMgr.simRobotSense)
+        self.__simImgRecogAlgo.signalMoveRobotForward.connect(self.__graphicsMgr.moveSimRobotForward)
+        self.__simImgRecogAlgo.signalMoveRobotBackward.connect(self.__graphicsMgr.moveSimRobotBackward)
+        self.__simImgRecogAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
+        self.__simImgRecogAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
+        self.__graphicsMgr.signalFrontLeft.connect(self.__simImgRecogAlgo.determine_move)
+        self.__simImgRecogAlgo.signalTakePic.connect(lambda: print('Take Photo\n'))
+        self.__simImgRecogAlgo.signalTakePic.connect(self.__simImgRecogAlgo.move_robot_after_taking_pic)
+
+        if int(self.leSPS.text()) < 0:
+            self.__simImgRecogAlgo.set_time(0.05)
+        else:
+            self.__simImgRecogAlgo.set_time(1 / int(self.leSPS.text()))
+
+        self.__imgThread.start()
 
     # The creation of simExplAlgo is shifted here to eliminate threading errors
     @pyqtSlot()
@@ -134,9 +212,6 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
         self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
         self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
-        # Signal-Slot for FastPath back to Home
-        self.__simExplAlgo.signalAstarCmd.connect(self.__graphicsMgr.interpretAstarCmd)
-        self.__graphicsMgr.signalNextAstarCmd.connect(self.__simExplAlgo.send_a_star_move_cmd_no_sense)
         # Signal-Slot for timer timeout
         self.__qTimer.timeout.connect(self.__simExplAlgo.timer_timeout)
 
@@ -178,6 +253,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnSetWaypoint.setEnabled(False)
 
         self.btnSimExpl.setEnabled(True)
+        self.btnSimImgRecog.setEnabled(True)
         self.btnSimFastPath.setEnabled(False)
         self.__graphicsMgr.resetRobot()
 
@@ -251,3 +327,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         print('\nMap Descriptor')
         print(f'p1: {p1}')
         print(f'p2: {p2}')
+
+    def startExpl(self):
+        self.__actlExplAlgo = ActlExplAlgo()
+        self.__actlExplAlgo.moveToThread(self.__explThread)
+        # Signal-Slot for thread management
+        self.__explThread.started.connect(self.__actlExplAlgo.run)

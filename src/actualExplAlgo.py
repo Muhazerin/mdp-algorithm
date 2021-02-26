@@ -7,7 +7,7 @@ from constants import AlgoStatus, Bearing
 from simExplFastPath import find_valid_unexplored, a_star_search, gen_move_cmd
 
 
-class SimExplAlgo(QObject):
+class ActlExplAlgo(QObject):
     finished = pyqtSignal()
     signalSense = pyqtSignal()
     signalMoveRobotForward = pyqtSignal()
@@ -16,7 +16,7 @@ class SimExplAlgo(QObject):
     signalRotateRobotLeft = pyqtSignal()
 
     def __init__(self):
-        super(SimExplAlgo, self).__init__()
+        super(ActlExplAlgo, self).__init__()
         self.__algoStatus = AlgoStatus.SEEK_GOAL
         self.__robotJustTurnedLeft = False
         self.__stop = False

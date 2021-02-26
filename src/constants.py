@@ -18,6 +18,14 @@ class AlgoStatus(IntEnum):
     FP_HOME_FINISHED = 7
 
 
+class ImgRecogAlgoStatus(IntEnum):
+    SEEK_GOAL = 0
+    SEEK_HOME = 1
+    FP_TO_OBSTACLE = 2
+    LEFT_WALL_HUG = 3
+    SEARCH_OBSTACLE = 4
+
+
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START
     @staticmethod

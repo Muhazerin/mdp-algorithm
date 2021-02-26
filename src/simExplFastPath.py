@@ -369,6 +369,10 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
             elif top_robot_center == goal and facing == Bearing.WEST:
                 move_cmd.append('RL')
                 current_bearing = Bearing.WEST
+            elif top_robot_center == goal and facing == Bearing.SOUTH:
+                move_cmd.append('RL')
+                move_cmd.append('RL')
+                current_bearing = Bearing.SOUTH
 
             top_node = Node(top_robot_center, current_bearing, parent=q, g=g,
                             h=get_manhattan_distance(top_robot_center, goal), move_cmd=move_cmd)
@@ -425,6 +429,10 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
             elif bottom_robot_center == goal and facing == Bearing.WEST:
                 move_cmd.append('RR')
                 current_bearing = Bearing.WEST
+            elif bottom_robot_center == goal and facing == Bearing.NORTH:
+                move_cmd.append('RL')
+                move_cmd.append('RL')
+                current_bearing = Bearing.NORTH
 
             bottom_node = Node(bottom_robot_center, current_bearing, parent=q, g=g,
                                h=get_manhattan_distance(bottom_robot_center, goal), move_cmd=move_cmd)
@@ -481,6 +489,10 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
             elif left_robot_center == goal and facing == Bearing.SOUTH:
                 move_cmd.append('RL')
                 current_bearing = Bearing.SOUTH
+            elif left_robot_center == goal and facing == Bearing.EAST:
+                move_cmd.append('RL')
+                move_cmd.append('RL')
+                current_bearing = Bearing.EAST
 
             left_node = Node(left_robot_center, current_bearing, parent=q, g=g,
                              h=get_manhattan_distance(left_robot_center, goal), move_cmd=move_cmd)
@@ -537,6 +549,10 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
             elif right_robot_center == goal and facing == Bearing.SOUTH:
                 move_cmd.append('RR')
                 current_bearing = Bearing.SOUTH
+            elif right_robot_center == goal and facing == Bearing.WEST:
+                move_cmd.append('RL')
+                move_cmd.append('RL')
+                current_bearing = Bearing.WEST
 
             right_node = Node(right_robot_center, current_bearing, parent=q, g=g,
                               h=get_manhattan_distance(right_robot_center, goal), move_cmd=move_cmd)

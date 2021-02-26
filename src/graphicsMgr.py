@@ -99,14 +99,5 @@ class GraphicsMgr(QObject):
         self.signalFrontLeft.emit(frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing)
 
     @pyqtSlot(str)
-    def interpretAstarCmd(self, cmd):
-        if cmd == 'RR':
-            print('SimRobot Rotate Right')
-            self.__robot.rotateRobotRight()
-        elif cmd == 'RL':
-            print('SimRobot Rotate Left')
-            self.__robot.rotateRobotLeft()
-        else:
-            print('SimRobot Move Forward')
-            self.__robot.moveRobotForward()
-        self.signalNextAstarCmd.emit()
+    def interpretCmd(self, cmd):
+        print(f'Cmd: {cmd}')
