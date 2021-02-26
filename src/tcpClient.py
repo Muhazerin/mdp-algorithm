@@ -14,6 +14,8 @@ class TcpClient(QObject):
     def __init__(self):
         super(TcpClient, self).__init__()
         self.__tcp_socket = None
+        self.connectionLost.connect(self.finished)
+        self.connectionLost.connect(lambda: print('## Disconnected from the robot ##'))
 
     @pyqtSlot()
     def start_client(self):
@@ -22,8 +24,6 @@ class TcpClient(QObject):
         self.__tcp_socket.disconnected.connect(self.connectionLost)
         self.__tcp_socket.readyRead.connect(self.read_ready)
         self.__tcp_socket.connected.connect(self.connected)
-        self.connectionLost.connect(self.finished)
-        self.connectionLost.connect(lambda: print('## Disconnected from the robot ##'))
         self.__tcp_socket.connectToHost(WIFI_IP, WIFI_PORT)
         if not self.__tcp_socket.waitForConnected(TIMEOUT_MSEC):
             print(f'## Timeout! {TIMEOUT_MSEC/1000}s has passed and it still hasn\'t connect ##')
