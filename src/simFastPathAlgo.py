@@ -147,24 +147,43 @@ class SimFastPathAlgo(QObject):
             cost.append(cost_so_far[to])
             direction.append(bearing[to])
         # path = [pos for pos in reversed(path)] # for debug
-        # cost = [pos for pos in reversed(cost)] # for debug
+        cost = [pos for pos in reversed(cost)] # for debug
         direction = [pos for pos in reversed(direction)]
-        return direction
+        return direction, cost[-1]
+
+    # in case waypoint is in cell next to obstacle (i.e. inside expanded obstacle wall)
+    def check_waypoint(grid, waypoint):
+        waypoint = (waypoint[1], waypoint[0])
+        x, y = waypoint
+        # uncomment depending on algorithm
+        # if grid[x][y] == 0:
+        #     return [waypoint]
+        res = []
+        # get all possible new waypoint locations
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if grid[x+i][y+j] == 0:
+                    res.append((x+i, y+j))
+        return res
 
     # combine 2 half paths generated from gen_half_path
     def gen_full_path(self, grid, waypoint):
-        # reverse coordinates to fit grid system used in fastest path algorithm
-        waypoint = (waypoint[1], waypoint[0])
         SimFastPathAlgo.preprocess(grid)
-        route = self.gen_half_path(grid, (1,1), waypoint)
-        route2 = self.gen_half_path(grid, waypoint, (18,13))
-        for d in route2[1:]:
-            route.append(d)
-        # convert bearing to 2-4-6-8 system used in main program
-        for i in range(len(route)):
-            route[i] //= 45
-        self._fastestPath = route
-        return route
+        waypoint = SimFastPathAlgo.check_waypoint(grid, waypoint)
+        # reverse coordinates to fit grid system used in fastest path algorithm
+        cost = float('inf')
+        for wp in waypoint:
+            route, cost1 = self.gen_half_path(grid, (1,1), wp)
+            route2, cost2 = self.gen_half_path(grid, wp, (18,13))
+            for d in route2[1:]:
+                route.append(d)
+            # convert bearing to 2-4-6-8 system used in main program
+            for i in range(len(route)):
+                route[i] //= 45
+            if cost1 + cost2 < cost:
+                cost = cost1 + cost2
+                self._fastestPath = route
+        return self._fastestPath
 
     def run(self):
         direction = self._fastestPath
