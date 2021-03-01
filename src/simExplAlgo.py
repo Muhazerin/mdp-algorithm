@@ -4,7 +4,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 import time
 from collections import Counter
 from constants import AlgoStatus, Bearing
-from simExplFastPath import find_valid_unexplored, a_star_search, gen_move_cmd
+from simExplFastPath import a_star_search, gen_move_cmd, get_nearest_goal
 
 
 class SimExplAlgo(QObject):
@@ -25,6 +25,8 @@ class SimExplAlgo(QObject):
         self.__coverage = 0
         self.__move_cmd = None
         self.__move_cmd_index = -1
+        self.__initial_pos = None
+        self.__no_of_left_rotation = 0
         # self.signalSense.emit()
 
     def set_time(self, sleep_time):
@@ -60,6 +62,20 @@ class SimExplAlgo(QObject):
                 self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEARCH
             else:
                 self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
+        elif self.__algoStatus == AlgoStatus.LEFT_WALL_HUG:
+            robot_center = allCorners[0][:]
+            robot_center[0] = robot_center[0] + 1
+            robot_center[1] = robot_center[1] - 2
+            if self.__initial_pos is None:
+                self.__initial_pos = robot_center
+                self.__no_of_left_rotation = 0
+            elif self.__initial_pos == robot_center and self.__no_of_left_rotation == 4:
+                self.__initial_pos = None
+                self.__no_of_left_rotation = 0
+                if coverage_per < self.__coverage:
+                    self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEARCH
+                else:
+                    self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
 
         if not self.__stop:
             if self.__algoStatus == AlgoStatus.FP_HOME_SEARCH:
@@ -78,24 +94,22 @@ class SimExplAlgo(QObject):
                     self.__move_cmd_index = -1
                     self.send_a_star_move_cmd()
             elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_SEARCH:
-                goal, facing = find_valid_unexplored(exploredMap, obstacleMap)
-                if goal is None or facing is None:
-                    print('Error! There\'s an unreachable unexplored cell')
+                robot_center = allCorners[0][:]
+                robot_center[0] = robot_center[0] + 2
+                robot_center[1] = robot_center[1] - 1
+                nearest_goal = get_nearest_goal(exploredMap, obstacleMap, robot_center)
+                print(f'A* to goal: {nearest_goal["robot_pos"]}')
+                dest_node = a_star_search(robot_center, nearest_goal['robot_pos'], nearest_goal['bearing'],
+                                          robotBearing, exploredMap, obstacleMap)
+                if dest_node is None:
+                    print("WTF!! THERE'S UNEXPLORED CELLS AND A STAR SEARCH RETURNS NONE?!")
                     self.__stop = True
                     self.finished.emit()
                 else:
-                    print(f'A* to goal: {goal}')
-                    dest_node = a_star_search([allCorners[0][0] + 2, allCorners[0][1] - 1], goal, facing, robotBearing,
-                                              exploredMap, obstacleMap)
-                    if dest_node is None:
-                        print("WTF!! THERE'S UNEXPLORED CELLS AND A STAR SEARCH RETURNS NONE?!")
-                        self.__stop = True
-                        self.finished.emit()
-                    else:
-                        self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEEK
-                        self.__move_cmd = gen_move_cmd(dest_node)
-                        self.__move_cmd_index = -1
-                        self.send_a_star_move_cmd()
+                    self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEEK
+                    self.__move_cmd = gen_move_cmd(dest_node)
+                    self.__move_cmd_index = -1
+                    self.send_a_star_move_cmd()
             elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_SEEK:
                 self.send_a_star_move_cmd()
             elif self.__algoStatus == AlgoStatus.FP_HOME_SEEK:
@@ -135,7 +149,7 @@ class SimExplAlgo(QObject):
             else:
                 self.__move_cmd_index = -1
                 self.__move_cmd = None
-                self.__algoStatus = AlgoStatus.FP_UNEXPLORED_FINISHED
+                self.__algoStatus = AlgoStatus.LEFT_WALL_HUG
                 self.signalSense.emit()
         else:
             self.__move_cmd_index = -1
@@ -160,4 +174,8 @@ class SimExplAlgo(QObject):
     def run(self):
         self.__stop = False
         self.__algoStatus = AlgoStatus.SEEK_GOAL
+        self.__initial_pos = None
+        self.__move_cmd = None
+        self.__move_cmd_index = -1
+        self.__no_of_left_rotation = 0
         self.signalSense.emit()

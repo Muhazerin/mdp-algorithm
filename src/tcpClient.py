@@ -50,6 +50,7 @@ class TcpClient(QObject):
     @pyqtSlot(str)
     def send_message(self, payload):
         try:
+            # Example message: 'FP|tr'
             # self.__tcp_socket.write(QByteArray().append(json.dumps({'target': 'ARD', 'payload': 'hi'})))
             self.__tcp_socket.write(QByteArray().append(payload))
             # self.__tcp_socket.flush()

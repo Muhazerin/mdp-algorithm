@@ -7,11 +7,11 @@ from simExplFastPath import a_star_search, gen_move_cmd
 
 def find_nearest_obstacle(list_of_coordinates, current_robot_center):
     min_index = 0
-    min_distance = (abs(current_robot_center[0] - list_of_coordinates[0]['robot_pos'][1]) * 10) + \
-                   (abs(current_robot_center[1] - list_of_coordinates[0]['robot_pos'][0]) * 10)
+    min_distance = (abs(current_robot_center[0] - list_of_coordinates[0]['robot_pos'][0]) * 10) + \
+                   (abs(current_robot_center[1] - list_of_coordinates[0]['robot_pos'][1]) * 10)
     for i in range(1, len(list_of_coordinates)):
-        distance_to_obstacle = (abs(current_robot_center[0] - list_of_coordinates[i]['robot_pos'][1]) * 10) + \
-                               (abs(current_robot_center[1] - list_of_coordinates[i]['robot_pos'][0]) * 10)
+        distance_to_obstacle = (abs(current_robot_center[0] - list_of_coordinates[i]['robot_pos'][0]) * 10) + \
+                               (abs(current_robot_center[1] - list_of_coordinates[i]['robot_pos'][1]) * 10)
         if distance_to_obstacle < min_distance:
             min_index = i
             min_distance = distance_to_obstacle

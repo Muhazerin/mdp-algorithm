@@ -51,218 +51,6 @@ class Node:
                    self.robot_center[1] == other.robot_center[1]
 
 
-# A* utility function: search surrounding bottom grid
-# row and col is in index coordinate system
-# goal is in xy coordinate system
-def search_bottom_surrounding_grid(row, col, explored_map, obstacle_map):
-    valid = True
-    for r in range(row - 1, row + 2):  # search the bottom, middle, top row
-        if valid:
-            if r < 0:
-                valid = False
-                break
-            else:
-                for c in range(col - 1, col + 2):  # search the left, middle, right col
-                    if 14 < c < 0 or explored_map[r][c] == 0 or obstacle_map[r][c] == 1:
-                        valid = False
-                        break
-    if valid:
-        return True, [col + 1, row + 1]
-    else:
-        return False, None
-
-
-# A* utility function: find the valid goal on bottom of cell, robot facing up
-# row and col is in index coordinate system
-def find_valid_goal_bottom(row, col, explored_map, obstacle_map):
-    row = row - 2
-    valid_col = col - 1
-    # search the surrounding potential goal grid
-    valid, goal = search_bottom_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.NORTH
-
-    valid_col = col
-    # search the surrounding potential goal grid
-    valid, goal = search_bottom_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.NORTH
-
-    valid_col = col + 1
-    valid, goal = search_bottom_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.NORTH
-    # If the code reach here, bottom is not a valid goal for this unexplored grid
-    return None, None
-
-
-# A* utility function: search surrounding left grid
-# row and col is in index coordinate system
-# goal is in xy coordinate system
-def search_left_surrounding_grid(row, col, explored_map, obstacle_map):
-    valid = True
-    for c in range(col - 1, col + 2):
-        if valid:
-            if c < 0:
-                valid = False
-                break
-            else:
-                for r in range(row - 1, row + 2):
-                    if 19 < r < 0 or explored_map[r][c] == 0 or obstacle_map[r][c] == 1:
-                        valid = False
-                        break
-    if valid:
-        return True, [col + 1, row + 1]
-    else:
-        return False, None
-
-
-# A* utility function: find the valid goal on left of cell, robot facing right
-# # row and col is in index coordinate system
-def find_valid_goal_left(row, col, explored_map, obstacle_map):
-    col = col - 2
-    valid_row = row - 1
-    # search the surrounding potential goal grid
-    valid, goal = search_left_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.EAST
-
-    valid_row = row
-    # search the surrounding potential goal grid
-    valid, goal = search_left_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.EAST
-
-    valid_row = row + 1
-    valid, goal = search_left_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.EAST
-    # If the code reach here, bottom is not a valid goal for this unexplored grid
-    return None, None
-
-
-# A* utility function: search surrounding right grid
-# row and col is in index coordinate system
-# goal is in xy coordinate system
-def search_right_surrounding_grid(row, col, explored_map, obstacle_map):
-    valid = True
-    for c in range(col - 1, col + 2):
-        if valid:
-            if c > 14:
-                valid = False
-                break
-            else:
-                for r in range(row - 1, row + 2):
-                    if 19 < r < 0 or explored_map[r][c] == 0 or obstacle_map[r][c] == 1:
-                        valid = False
-                        break
-    if valid:
-        return True, [col + 1, row + 1]
-    else:
-        return False, None
-
-
-# A* utility function: find the valid goal on right of cell, robot facing left
-# # row and col is in index coordinate system
-def find_valid_goal_right(row, col, explored_map, obstacle_map):
-    col = col + 2
-    valid_row = row - 1
-    # search the surrounding potential goal grid
-    valid, goal = search_right_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.WEST
-
-    valid_row = row
-    # search the surrounding potential goal grid
-    valid, goal = search_right_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.WEST
-
-    valid_row = row + 1
-    valid, goal = search_right_surrounding_grid(valid_row, col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.WEST
-    # If the code reach here, bottom is not a valid goal for this unexplored grid
-    return None, None
-
-
-# A* utility function: search surrounding top grid
-# row and col is in index coordinate system
-# goal is in xy coordinate system
-def search_top_surrounding_grid(row, col, explored_map, obstacle_map):
-    valid = True
-    for r in range(row - 1, row + 2):  # search the bottom, middle, top row
-        if valid:
-            if r > 19:
-                valid = False
-                break
-            else:
-                for c in range(col - 1, col + 2):  # search the left, middle, right col
-                    if 14 < c < 0 or explored_map[r][c] == 0 or obstacle_map[r][c] == 1:
-                        valid = False
-                        break
-    if valid:
-        return True, [col + 1, row + 1]
-    else:
-        return False, None
-
-
-# A* utility function: find the valid goal on top of cell, robot facing down
-# row and col is in index coordinate system
-def find_valid_goal_top(row, col, explored_map, obstacle_map):
-    row = row + 2
-    valid_col = col - 1
-    # search the surrounding potential goal grid
-    valid, goal = search_top_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.SOUTH
-
-    valid_col = col
-    # search the surrounding potential goal grid
-    valid, goal = search_top_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.SOUTH
-
-    valid_col = col + 1
-    valid, goal = search_top_surrounding_grid(row, valid_col, explored_map, obstacle_map)
-    if valid:
-        return goal, Bearing.SOUTH
-    # If the code reach here, bottom is not a valid goal for this unexplored grid
-    return None, None
-
-
-# A* utility function: find an unexplored part of the map that is explorable
-# row and col is in index coordinate system
-def find_valid_unexplored(explored_map, obstacle_map):
-    goal = None
-    facing = None
-    for row in range(0, 19):
-        for col in range(0, 15):
-            if explored_map[row][col] == 0:
-                # Search bottom
-                goal, facing = find_valid_goal_bottom(row, col, explored_map, obstacle_map)
-                if goal is not None:
-                    return goal, facing
-                else:
-                    # Search left
-                    goal, facing = find_valid_goal_left(row, col, explored_map, obstacle_map)
-                if goal is not None:
-                    return goal, facing
-                else:
-                    # Search right
-                    goal, facing = find_valid_goal_right(row, col, explored_map, obstacle_map)
-                if goal is not None:
-                    return goal, facing
-                else:
-                    # Search top
-                    goal, facing = find_valid_goal_top(row, col, explored_map, obstacle_map)
-                if goal is not None:
-                    return goal, facing
-
-    # if the code reach here, it means there's an unreachable unexplored cell
-    return goal, facing
-
-
 # A* utility function: get the index of the node with the smallest f in open_list
 def get_smallest_f_node_index(open_list):
     index = 0
@@ -584,3 +372,106 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                         if existing_node.get_f() > right_node.get_f():
                             open_list[index] = right_node
     return None
+
+
+# A* utility function: get all the unexplored grid
+def get_all_unexplored_grid(explored_map):
+    list_of_coordinates = list()
+    for row in range(0, len(explored_map)):
+        for col in range(0, len(explored_map[row])):
+            if explored_map[row][col] == 0:
+                list_of_coordinates.append([row, col])
+    return list_of_coordinates
+
+
+# A* utility function: get the nearest unexplored grid to the robot
+# current_robot_center is in xy, list_of_coordinates is in row, col
+def find_nearest_unexplored_grid(list_of_coordinates, current_robot_center):
+    min_index = 0
+    min_distance = (abs(current_robot_center[0] - 1 - list_of_coordinates[min_index][1]) * 10) + \
+                   (abs(current_robot_center[1] - 1 - list_of_coordinates[min_index][0]) * 10)
+    for i in range(1, len(list_of_coordinates)):
+        distance = (abs(current_robot_center[0] - 1 - list_of_coordinates[i][1]) * 10) + \
+                   (abs(current_robot_center[1] - 1 - list_of_coordinates[i][0]) * 10)
+        if distance < min_distance:
+            min_distance = distance
+            min_index = i
+    return list_of_coordinates[min_index]
+
+
+def find_nearest_obstacle(unexplored_grid_coordinate, obstacle_map):
+    found = False
+    lower_bound = 0
+    upper_bound = 1
+    distance = 0
+    while not found:
+        lower_bound = lower_bound - 1
+        upper_bound = upper_bound + 1
+        distance = distance + 1
+        if distance > 20:   # it should not reach here
+            return None
+        for row in range(unexplored_grid_coordinate[0] + lower_bound, unexplored_grid_coordinate[0] + upper_bound):
+            if 0 <= row <= 19:
+                for col in range(unexplored_grid_coordinate[1] + lower_bound, unexplored_grid_coordinate[1] + upper_bound):
+                    if 0 <= col <= 14:
+                        if obstacle_map[row][col] == 1:
+                            return [row, col]
+
+
+def get_surrounding_obstacle(obstacle_coordinate, explored_map, obstacle_map):
+    list_of_coordinates = list()
+    coordinates = [
+        [obstacle_coordinate[0] + 1, obstacle_coordinate[1]],   # top
+        [obstacle_coordinate[0] - 1, obstacle_coordinate[1]],   # bottom
+        [obstacle_coordinate[0], obstacle_coordinate[1] + 1],   # right
+        [obstacle_coordinate[0], obstacle_coordinate[1] - 1],   # left
+    ]
+    for coordinate in coordinates:
+        row = coordinate[0]
+        col = coordinate[1]
+        if 0 <= row <= 19 and 0 <= col <= 14:
+            if explored_map[row][col] == 1 and obstacle_map[row][col] == 0:
+                if coordinate == coordinates[0]:
+                    list_of_coordinates.append({
+                        'robot_pos': [col + 1, row + 2],
+                        'bearing': Bearing.WEST
+                    })
+                elif coordinate == coordinates[1]:
+                    list_of_coordinates.append({
+                        'robot_pos': [col + 1, row],
+                        'bearing': Bearing.EAST
+                    })
+                elif coordinate == coordinates[2]:
+                    list_of_coordinates.append({
+                        'robot_pos': [col, row + 1],
+                        'bearing': Bearing.SOUTH
+                    })
+                else:
+                    list_of_coordinates.append({
+                        'robot_pos': [col + 2, row + 1],
+                        'bearing': Bearing.NORTH
+                    })
+    return list_of_coordinates
+
+
+# list_of_coordinates and current_robot_position is in xy
+def find_nearest_goal(list_of_coordinates, current_robot_center):
+    min_index = 0
+    min_distance = (abs(current_robot_center[0] - list_of_coordinates[0]['robot_pos'][0]) * 10) + \
+                   (abs(current_robot_center[1] - list_of_coordinates[0]['robot_pos'][1]) * 10)
+    for i in range(1, len(list_of_coordinates)):
+        distance_to_obstacle = (abs(current_robot_center[0] - list_of_coordinates[i]['robot_pos'][0]) * 10) + \
+                               (abs(current_robot_center[1] - list_of_coordinates[i]['robot_pos'][1]) * 10)
+        if distance_to_obstacle < min_distance:
+            min_index = i
+            min_distance = distance_to_obstacle
+    return list_of_coordinates[min_index]
+
+
+def get_nearest_goal(explored_map, obstacle_map, current_robot_center):
+    list_of_unexplored_grid = get_all_unexplored_grid(explored_map)
+    nearest_unexplored_grid = find_nearest_unexplored_grid(list_of_unexplored_grid, current_robot_center)
+    nearest_obstacle = find_nearest_obstacle(nearest_unexplored_grid, obstacle_map)
+    surrounding_obstacle_grid = get_surrounding_obstacle(nearest_obstacle, explored_map, obstacle_map)
+    nearest_goal = find_nearest_goal(surrounding_obstacle_grid, current_robot_center)
+    return nearest_goal

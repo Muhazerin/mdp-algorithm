@@ -16,6 +16,7 @@ class AlgoStatus(IntEnum):
     FP_HOME_SEARCH = 5
     FP_HOME_SEEK = 6
     FP_HOME_FINISHED = 7
+    LEFT_WALL_HUG = 8
 
 
 class ImgRecogAlgoStatus(IntEnum):

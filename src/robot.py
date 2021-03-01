@@ -131,6 +131,7 @@ class SimRobot(Robot):
         x = int(self.x / 40)
         y = int(abs(self.y) / 40)
 
+        # the x and y is in col, row coordinate system
         topLeftCorner = [x, y]
         topRightCorner = [x + 3, y - 1]
         bottomLeftCorner = [x - 1, y - 3]
