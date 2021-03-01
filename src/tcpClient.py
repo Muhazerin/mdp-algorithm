@@ -1,3 +1,5 @@
+import json
+
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QByteArray
 from PyQt5.QtNetwork import QTcpSocket
 from config import WIFI_IP, WIFI_PORT
@@ -46,8 +48,10 @@ class TcpClient(QObject):
             print(f'tcpClient::read_ready() error msg: {err}')
 
     @pyqtSlot(str)
-    def send_message(self, message):
+    def send_message(self, payload):
         try:
-            self.__tcp_socket.write(QByteArray().append(message))
+            # self.__tcp_socket.write(QByteArray().append(json.dumps({'target': 'ARD', 'payload': 'hi'})))
+            self.__tcp_socket.write(QByteArray().append(payload))
+            # self.__tcp_socket.flush()
         except Exception as err:
             print(f'tcpClient::send_message() error msg: {err}')

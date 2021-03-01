@@ -13,6 +13,12 @@ class GraphicsMgr(QObject):
     signalFrontLeft = pyqtSignal(dict, list, list, list, int)
     signalNextAstarCmd = pyqtSignal()
 
+    signalStartExpl = pyqtSignal()
+    signalStartFP = pyqtSignal()
+    signalStartImgRecog = pyqtSignal()
+    signalSetWaypoint = pyqtSignal(str)
+    signalNextMove = pyqtSignal()
+
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
         self.__scene = scene
@@ -97,6 +103,20 @@ class GraphicsMgr(QObject):
     @pyqtSlot(dict, list, list, list, int)
     def emitFrontLeftSignal(self, frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing):
         self.signalFrontLeft.emit(frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing)
+
+    # For Sim Expl Algo return home
+    @pyqtSlot(str)
+    def interpretAstarCmd(self, cmd):
+        if cmd == 'RR':
+            print('SimRobot Rotate Right')
+            self.__robot.rotateRobotRight()
+        elif cmd == 'RL':
+            print('SimRobot Rotate Left')
+            self.__robot.rotateRobotLeft()
+        else:
+            print('SimRobot Move Forward')
+            self.__robot.moveRobotForward()
+        self.signalNextAstarCmd.emit()
 
     @pyqtSlot(str)
     def interpretCmd(self, cmd):

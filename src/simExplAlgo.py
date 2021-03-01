@@ -14,6 +14,7 @@ class SimExplAlgo(QObject):
     signalMoveRobotBackward = pyqtSignal()
     signalRotateRobotRight = pyqtSignal()
     signalRotateRobotLeft = pyqtSignal()
+    signalAstarCmd = pyqtSignal(str)    # Only FP_HOME_SEEK uses this signal
 
     def __init__(self):
         super(SimExplAlgo, self).__init__()
@@ -98,7 +99,7 @@ class SimExplAlgo(QObject):
             elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_SEEK:
                 self.send_a_star_move_cmd()
             elif self.__algoStatus == AlgoStatus.FP_HOME_SEEK:
-                self.send_a_star_move_cmd()
+                self.send_a_star_move_cmd_no_sense()
             else:
                 time.sleep(self.__time)
                 if not self.__robotJustTurnedLeft:
@@ -134,13 +135,24 @@ class SimExplAlgo(QObject):
             else:
                 self.__move_cmd_index = -1
                 self.__move_cmd = None
-                if self.__algoStatus == AlgoStatus.FP_HOME_SEEK:
-                    self.__algoStatus = AlgoStatus.FP_HOME_FINISHED
-                    self.__stop = True
-                    self.finished.emit()
-                else:
-                    self.__algoStatus = AlgoStatus.FP_UNEXPLORED_FINISHED
-                    self.signalSense.emit()
+                self.__algoStatus = AlgoStatus.FP_UNEXPLORED_FINISHED
+                self.signalSense.emit()
+        else:
+            self.__move_cmd_index = -1
+
+    @pyqtSlot()
+    def send_a_star_move_cmd_no_sense(self):
+        if self.__move_cmd is not None:
+            self.__move_cmd_index = self.__move_cmd_index + 1
+            if self.__move_cmd_index < len(self.__move_cmd):
+                time.sleep(self.__time)
+                self.signalAstarCmd.emit(self.__move_cmd[self.__move_cmd_index])
+            else:
+                self.__move_cmd_index = -1
+                self.__move_cmd = None
+                self.__algoStatus = AlgoStatus.FP_HOME_FINISHED
+                self.__stop = True
+                self.finished.emit()
         else:
             self.__move_cmd_index = -1
 

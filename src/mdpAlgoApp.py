@@ -212,6 +212,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__simExplAlgo.signalRotateRobotRight.connect(self.__graphicsMgr.rotateSimRobotRight)
         self.__simExplAlgo.signalRotateRobotLeft.connect(self.__graphicsMgr.rotateSimRobotLeft)
         self.__graphicsMgr.signalFrontLeft.connect(self.__simExplAlgo.determineMove)
+        # Signal-Slot for FastPath back to Home
+        self.__simExplAlgo.signalAstarCmd.connect(self.__graphicsMgr.interpretAstarCmd)
+        self.__graphicsMgr.signalNextAstarCmd.connect(self.__simExplAlgo.send_a_star_move_cmd_no_sense)
         # Signal-Slot for timer timeout
         self.__qTimer.timeout.connect(self.__simExplAlgo.timer_timeout)
 
@@ -263,6 +266,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.leYWaypoint.setEnabled(True)
         self.btnSetWaypoint.setEnabled(True)
         self.btnSimExpl.setEnabled(False)
+        self.btnSimImgRecog.setEnabled(False)
 
     def waypointError(self, errorMsg):
         self.__map.clearWaypoint()
