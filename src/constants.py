@@ -7,6 +7,26 @@ MIN_X = 0
 MAX_X = 14
 
 
+class AlgoStatus(IntEnum):
+    SEEK_GOAL = 0
+    SEEK_HOME = 1
+    FP_UNEXPLORED_SEARCH = 2
+    FP_UNEXPLORED_SEEK = 3
+    FP_UNEXPLORED_FINISHED = 4
+    FP_HOME_SEARCH = 5
+    FP_HOME_SEEK = 6
+    FP_HOME_FINISHED = 7
+    LEFT_WALL_HUG = 8
+
+
+class ImgRecogAlgoStatus(IntEnum):
+    SEEK_GOAL = 0
+    SEEK_HOME = 1
+    FP_TO_OBSTACLE = 2
+    LEFT_WALL_HUG = 3
+    SEARCH_OBSTACLE = 4
+
+
 class MapConstant(IntEnum):
     # Returns a list that contains that index of START
     @staticmethod
@@ -41,7 +61,8 @@ class TileType(IntEnum):
     EXPLORED_OBSTACLE = 4
     WAYPOINT = 5
     START = 6
-    GOAL = 7
+    UNEXPLORED_GOAL = 7
+    EXPLORED_GOAL = 8
 
 
 class SensorLocation(IntEnum):

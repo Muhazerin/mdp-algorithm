@@ -263,9 +263,6 @@
         </item>
         <item>
          <widget class="QPushButton" name="btnSimImgRecog">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -286,45 +283,50 @@
        </layout>
       </item>
       <item>
-       <widget class="QPushButton" name="btnGMD">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>20</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Generate Map Descriptor</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="hlRobotConnection">
+       <layout class="QVBoxLayout" name="vlRobotConnection">
         <item>
-         <widget class="QLabel" name="lblConnectRobot">
-          <property name="text">
-           <string>Robot's Connection: </string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="hlRobotConnection">
+          <item>
+           <widget class="QLabel" name="lblConnectRobot">
+            <property name="text">
+             <string>Robot's Connection: </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnRobotConnection">
+            <property name="text">
+             <string>Connect</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="QPushButton" name="btnRobotConnection">
-          <property name="text">
-           <string>Connect</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="hlRobotMessage">
+          <item>
+           <widget class="QLineEdit" name="leMsg">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="placeholderText">
+             <string>message</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnMsg">
+            <property name="text">
+             <string>Send Message</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="leRobotConnectionStatus">
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
       </item>
      </layout>
     </item>

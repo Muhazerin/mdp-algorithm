@@ -128,7 +128,10 @@ class Map:
         index = self.getIndex(row, col)
 
         if self.__obstacleMap[row][col] == 0:
-            tileType = TileType.EXPLORED
+            if row >= 17 and col >= 12:
+                tileType = TileType.EXPLORED_GOAL
+            else:
+                tileType = TileType.EXPLORED
         else:
             tileType = TileType.EXPLORED_OBSTACLE
 
@@ -248,7 +251,10 @@ class Map:
                         if self.__exploredMap[row][col] == 0:
                             observer.updateMap(self.getIndex(row, col), TileType.UNEXPLORED)
                         elif self.__exploredMap[row][col] == 1 and self.__obstacleMap[row][col] == 0:
-                            observer.updateMap(self.getIndex(row, col), TileType.EXPLORED)
+                            if row >= 17 and col >= 12:
+                                observer.updateMap(self.getIndex(row, col), TileType.EXPLORED_GOAL)
+                            else:
+                                observer.updateMap(self.getIndex(row, col), TileType.EXPLORED)
                         elif self.__exploredMap[row][col] == 1 and self.__obstacleMap[row][col] == 1:
                             observer.updateMap(self.getIndex(row, col), TileType.EXPLORED_OBSTACLE)
         except Exception as err:
@@ -275,7 +281,10 @@ class Map:
                 for col in range(0, 15):
                     for observer in self.__observerList:
                         if self.__simExplObstacleMap[row][col] == 0:
-                            observer.updateMap(self.getIndex(row, col), TileType.UNEXPLORED)
+                            if row >= 17 and col >= 12:
+                                observer.updateMap(self.getIndex(row, col), TileType.UNEXPLORED_GOAL)
+                            else:
+                                observer.updateMap(self.getIndex(row, col), TileType.UNEXPLORED)
                         elif self.__simExplObstacleMap[row][col] == 1:
                             observer.updateMap(self.getIndex(row, col), TileType.UNEXPLORED_OBSTACLE)
         except Exception as err:

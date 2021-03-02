@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QRectF, Qt, QMutex, QMutexLocker
+from PyQt5.QtCore import QRectF, Qt
 from PyQt5.QtWidgets import QGraphicsEllipseItem
 from constants import Bearing
 from sensor import RobotSensorConfiguration
@@ -70,13 +70,13 @@ class Robot(QGraphicsEllipseItem):
 class SimRobot(Robot):
     def __init__(self, x, y, map, robotObject):
         super(SimRobot, self).__init__(x, y)
-        self.__mutex = QMutex()
         self.__map = map
         self.__robotObject = robotObject
         self.__sensorConfig = RobotSensorConfiguration(self.__map)
 
     def resetPos(self):
         self.bearing = Bearing.NORTH
+        self.update(self.boundingRect())
         self.moveRobot(0, -120)
 
     def moveRobot(self, x, y):
@@ -131,6 +131,7 @@ class SimRobot(Robot):
         x = int(self.x / 40)
         y = int(abs(self.y) / 40)
 
+        # the x and y is in col, row coordinate system
         topLeftCorner = [x, y]
         topRightCorner = [x + 3, y - 1]
         bottomLeftCorner = [x - 1, y - 3]
@@ -207,4 +208,4 @@ class SimRobot(Robot):
                     if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
                         frontLeftDict['L'] = 1
                         break
-        self.__robotObject.emitFrontLeft(frontLeftDict, allCorners)
+        self.__robotObject.emitFrontLeft(frontLeftDict, allCorners, self.__map.exploredMap, self.__map.obstacleMap, self.bearing)

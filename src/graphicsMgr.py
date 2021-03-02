@@ -10,7 +10,14 @@ from robot import SimRobot
 
 
 class GraphicsMgr(QObject):
-    signalFrontLeft = pyqtSignal(dict, list)
+    signalFrontLeft = pyqtSignal(dict, list, list, list, int)
+    signalNextAstarCmd = pyqtSignal()
+
+    signalStartExpl = pyqtSignal()
+    signalStartFP = pyqtSignal()
+    signalStartImgRecog = pyqtSignal()
+    signalSetWaypoint = pyqtSignal(str)
+    signalNextMove = pyqtSignal()
 
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
@@ -18,7 +25,7 @@ class GraphicsMgr(QObject):
         self.__map = map
         self.__robotObject = RobotObject()
         self.__robot = SimRobot(0, -120, self.__map, self.__robotObject)
-        self.__dontTouchMapList = MapConstant.getMapStartList() + MapConstant.getMapGoalList()
+        self.__dontTouchMapList = MapConstant.getMapStartList()
         self.__map.addObserver(self)
 
         self.__robotObject.signalFrontLeft.connect(self.emitFrontLeftSignal)
@@ -55,7 +62,7 @@ class GraphicsMgr(QObject):
         # Color the START blue
         self.changeTile(MapConstant.getMapStartList(), TileType.START)
         # Color the GOAl green
-        self.changeTile(MapConstant.getMapGoalList(), TileType.GOAL)
+        self.changeTile(MapConstant.getMapGoalList(), TileType.UNEXPLORED_GOAL)
 
     def changeTile(self, mapList, tt):
         for i in mapList:
@@ -93,6 +100,24 @@ class GraphicsMgr(QObject):
         print('SimRobot Sensing')
         self.__robot.sense()
 
-    @pyqtSlot(dict, list)
-    def emitFrontLeftSignal(self, frontLeftDict, allCorners):
-        self.signalFrontLeft.emit(frontLeftDict, allCorners)
+    @pyqtSlot(dict, list, list, list, int)
+    def emitFrontLeftSignal(self, frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing):
+        self.signalFrontLeft.emit(frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing)
+
+    # For Sim Expl Algo return home
+    @pyqtSlot(str)
+    def interpretAstarCmd(self, cmd):
+        if cmd == 'RR':
+            print('SimRobot Rotate Right')
+            self.__robot.rotateRobotRight()
+        elif cmd == 'RL':
+            print('SimRobot Rotate Left')
+            self.__robot.rotateRobotLeft()
+        else:
+            print('SimRobot Move Forward')
+            self.__robot.moveRobotForward()
+        self.signalNextAstarCmd.emit()
+
+    @pyqtSlot(str)
+    def interpretCmd(self, cmd):
+        print(f'Cmd: {cmd}')

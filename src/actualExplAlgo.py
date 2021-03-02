@@ -1,3 +1,7 @@
+# TODO: Need stop signal to signal the arduino and android that the expl has stopped
+# TODO: Hardcode the timer to 330 seconds (5 mins 30 secs)
+#   After timer timeout, FP back to home
+
 import math
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
@@ -7,7 +11,7 @@ from constants import AlgoStatus, Bearing
 from simExplFastPath import a_star_search, gen_move_cmd, get_nearest_goal
 
 
-class SimExplAlgo(QObject):
+class ActlExplAlgo(QObject):
     finished = pyqtSignal()
     signalSense = pyqtSignal()
     signalMoveRobotForward = pyqtSignal()
@@ -17,7 +21,7 @@ class SimExplAlgo(QObject):
     signalAstarCmd = pyqtSignal(str)    # Only FP_HOME_SEEK uses this signal
 
     def __init__(self):
-        super(SimExplAlgo, self).__init__()
+        super(ActlExplAlgo, self).__init__()
         self.__algoStatus = AlgoStatus.SEEK_GOAL
         self.__robotJustTurnedLeft = False
         self.__stop = False
