@@ -183,25 +183,35 @@ class SimFastPathAlgo(QObject):
             if cost1 + cost2 < cost:
                 cost = cost1 + cost2
                 self._fastestPath = route
+        commands = SimFastPathAlgo.convert_commands(route)
+        self._fastestPath = commands
         return self._fastestPath
+    
+    def convert_commands(num_route):
+        commands = []
+        for i in range(1, len(num_route)):
+            if num_route[i] == num_route[i-1]-2 or (num_route[i] == 6 and num_route[i-1] == 0):
+                commands.append("TL")
+            elif num_route[i] == num_route[i-1]+2 or (num_route[i] == 0 and num_route[i-1] == 6):
+                commands.append("TR")
+            elif abs(num_route[i] - num_route[i-1]) == 4:
+                commands.append("TL")
+                commands.append("TL")
+            commands.append("F")
+        return commands
+
 
     def run(self):
-        direction = self._fastestPath
-        for i in range(1, len(direction)):
-            if direction[i] == direction[i-1]-2 or (direction[i] == 6 and direction[i-1] == 0):
+        for c in self._fastestPath:
+            if c == "TL":
                 self.signalRotateRobotLeft.emit()
                 time.sleep(TIME)
-                # self.signalSense.emit()
-            elif direction[i] == direction[i-1]+2 or (direction[i] == 0 and direction[i-1] == 6):
+            elif c == "TR":
                 self.signalRotateRobotRight.emit()
                 time.sleep(TIME)
-            elif abs(direction[i] - direction[i-1]) == 4:
-                self.signalRotateRobotLeft.emit()
-                self.signalRotateRobotLeft.emit()
-                # self.signalSense.emit()
-            self.signalMoveRobotForward.emit()
-            time.sleep(TIME)
-            # self.signalSense.emit()
+            elif c == "F":
+                self.signalMoveRobotForward.emit()
+                time.sleep(TIME)
         self.__stop = True
         self.finished.emit()
 
