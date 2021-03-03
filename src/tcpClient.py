@@ -28,11 +28,11 @@ class TcpClient(QObject):
         self.__tcp_socket.connected.connect(self.connected)
         self.__tcp_socket.connectToHost(WIFI_IP, WIFI_PORT)
         if not self.__tcp_socket.waitForConnected(TIMEOUT_MSEC):
-            print(f'## Timeout! {TIMEOUT_MSEC/1000}s has passed and it still hasn\'t connect ##')
+            print(f'## Timeout! {TIMEOUT_MSEC/1000}s has passed and it still hasn\'t connect ##\n')
             self.__tcp_socket.disconnectFromHost()
             self.finished.emit()
         else:
-            print(f'## Connected to robot at IP: {WIFI_IP}, PORT: {WIFI_PORT} ##')
+            print(f'## Connected to robot at IP: {WIFI_IP}, PORT: {WIFI_PORT} ##\n')
 
     def stop_client(self):
         if self.__tcp_socket is not None:
@@ -52,7 +52,9 @@ class TcpClient(QObject):
         try:
             # Example message: 'FP|tr'
             # self.__tcp_socket.write(QByteArray().append(json.dumps({'target': 'ARD', 'payload': 'hi'})))
+            print(f'sending msg: {payload}')
             self.__tcp_socket.write(QByteArray().append(payload))
+            print('msg sent\n')
             # self.__tcp_socket.flush()
         except Exception as err:
             print(f'tcpClient::send_message() error msg: {err}')

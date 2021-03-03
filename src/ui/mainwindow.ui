@@ -215,6 +215,13 @@
           </property>
          </widget>
         </item>
+        <item>
+         <widget class="QPushButton" name="btnPrepForMaze">
+          <property name="text">
+           <string>Prep For Maze</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
       <item>
@@ -277,6 +284,30 @@
           </property>
           <property name="text">
            <string>Image Recognition</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QPushButton" name="btnCalibrate">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Calibrate Robot</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnSendMdfForFp">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Send MDF for FP</string>
           </property>
          </widget>
         </item>

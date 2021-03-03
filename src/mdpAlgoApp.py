@@ -1,9 +1,5 @@
 # TODO:
-#  Algo to be implemented:
-#    Fastest Path (A* Algorithm)
-#  Code the actual thing
-#  Everything above
-#    Image Recognition exploration
+#    Image Recognition image coordinate
 
 # TODO: Real Exploration & Fast Path algorithm for the real robot
 #  1. real algo class (realAlgo)
@@ -28,14 +24,20 @@ from ui import mainwindow
 from mapDialog import MapDialog
 from tcpClient import TcpClient
 from actualExplAlgo import ActlExplAlgo
+from actualFastPathAlgo import ActlFastPathAlgo
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
-    signalSendMsg = pyqtSignal(str)
+    signalSendMsg = pyqtSignal(str) # to do calibration during prep
 
     def __init__(self):
         super(MDPAlgoApp, self).__init__()
         self.setupUi(self)
+
+        self.btnCalibrate.clicked.connect(self.btnCalibrateClicked)
+        self.btnPrepForMaze.clicked.connect(self.btnPrepForMazeClicked)
+        self.btnSendMdfForFp.clicked.connect(self.btnSendMdfForFpClicked)
+
         # Start and Goal coordinate
         self.__dontTouchMapList = [
             [0, 0], [1, 0], [2, 0],
@@ -81,6 +83,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         # Let the graphicMgr handle designing the scene and robot
         self.__graphicsMgr = GraphicsMgr(self.__scene, self.__map)
 
+        # Signal-Slot to start actual FP,Expl,ImgRecog
+        self.__graphicsMgr.signalStartFP.connect(self.startActualFP)
+
         # MapDialog settings signal and slot
         self.btnLoadMap.clicked.connect(self.btnLoadMapClicked)
         self.btnResetMap.clicked.connect(self.btnResetMapClicked)
@@ -125,13 +130,21 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__tcpClient.finished.connect(self.__tcpThread.quit)
         self.btnRobotConnection.clicked.connect(self.btnRobotConnectionClicked)
         self.__tcpClient.finished.connect(lambda: self.btnRobotConnection.setText('Connect'))
-        self.__tcpClient.finished.connect(self.disableSendMsg)
-        self.__tcpClient.connected.connect(self.enableSendMsg)
+        self.__tcpClient.finished.connect(self.tcpClientDisconnected)
+        self.__tcpClient.connected.connect(self.tcpClientConnected)
+        self.__tcpClient.finished.connect(self.disableSendMsg)  # TODO: Remove after testing
+        self.__tcpClient.connected.connect(self.enableSendMsg)  # TODO: Remove after testing
         self.__tcpClient.interpretCmd.connect(self.__graphicsMgr.interpretCmd)
 
         # Actual Exploration Algo
         self.__explThread = QThread()
         self.__actlExplAlgo = ActlExplAlgo()
+
+        # Actual Fast Path Algo
+        self.__actlFpThread = QThread()
+        self.__actlFpAlgo = ActlFastPathAlgo()
+        self.__actlFpThread.started.connect(lambda: print('Actual Fastest Path Started\n'))
+        self.__actlFpThread.started.connect(lambda: self.btnCalibrate.setEnabled(False))
 
         # TODO: Remove this after testing
         self.leMsg.setEnabled(False)
@@ -159,6 +172,74 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
     def disableSendMsg(self):
         self.leMsg.setEnabled(False)
         self.btnMsg.setEnabled(False)
+
+    @pyqtSlot()
+    def btnCalibrateClicked(self):
+        self.signalSendMsg.emit('EC|c')
+
+    @pyqtSlot()
+    def btnPrepForMazeClicked(self):
+        self.__map.prepareMapForTask()
+
+    @pyqtSlot()
+    def btnSendMdfForFpClicked(self):
+        msg = f"MDF|{self.__mapDialog.getP1String()},{self.__mapDialog.getP2String()}"
+        self.signalSendMsg.emit(msg)
+
+    @pyqtSlot()
+    def startActualFP(self):
+        self.btnLoadMap.setEnabled(False)
+        self.btnResetMap.setEnabled(False)
+        self.btnPrepForMaze.setEnabled(False)
+
+        self.__actlFpAlgo = ActlFastPathAlgo()
+        self.__actlFpAlgo.moveToThread(self.__actlFpThread)
+        # Signal-Slot for thread management
+        self.__actlFpThread.started.connect(self.__actlFpAlgo.run)
+        self.__actlFpAlgo.finished.connect(self.__actlFpThread.quit)
+        self.__actlFpAlgo.finished.connect(self.__graphicsMgr.resetShortestPath)
+        self.__actlFpAlgo.finished.connect(lambda: print('Actual Fastest Path Stopped\n'))
+        self.__actlFpAlgo.finished.connect(self.enableMapSetting)
+        self.__thread.finished.connect(self.__actlFpAlgo.deleteLater)
+        self.__graphicsMgr.signalStopFP.connect(self.__actlFpAlgo.finished)
+        # Signal-Slot for FP-Robot communication
+        self.__actlFpAlgo.signalSendCmd.connect(self.__tcpClient.send_message)
+        shortestPath = self.__actlFpAlgo.gen_full_path(self.__map.obstacleMap, self.__map.waypoint)
+        self.__graphicsMgr.setShortestPath(shortestPath)
+        print(f'shortest path: {shortestPath}')
+
+        self.__actlFpThread.start()
+
+    @pyqtSlot()
+    def enableMapSetting(self):
+        self.btnCalibrate.setEnabled(True)
+        self.btnPrepForMaze.setEnabled(True)
+        self.btnLoadMap.setEnabled(True)
+        self.btnResetMap.setEnabled(True)
+
+    @pyqtSlot()
+    def tcpClientDisconnected(self):
+        self.btnLoadMap.setEnabled(True)
+        self.btnResetMap.setEnabled(True)
+        self.btnCalibrate.setEnabled(False)
+        self.btnSendMdfForFp.setEnabled(False)
+
+    @pyqtSlot()
+    def tcpClientConnected(self):
+        # disable unused ui
+        self.leXWaypoint.setEnabled(False)
+        self.leYWaypoint.setEnabled(False)
+        self.btnSetWaypoint.setEnabled(False)
+
+        # self.btnLoadMap.setEnabled(False)
+        # self.btnResetMap.setEnabled(False)
+
+        self.btnSimExpl.setEnabled(False)
+        self.btnSimFastPath.setEnabled(False)
+        self.btnSimImgRecog.setEnabled(False)
+
+        self.btnCalibrate.setEnabled(True)
+        self.btnSendMdfForFp.setEnabled(True)
 
     @pyqtSlot()
     def btnRobotConnectionClicked(self):
@@ -290,8 +371,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
                 else:
                     self.__map.clearWaypoint()
                     self.__map.waypoint = coordinate
-                    self.__shortestPath = self.__simFastPathAlgo.gen_full_path(self.__map.obstacleMap, self.__map.waypoint)
-                    print(self.__shortestPath)
+                    shortestPath = self.__simFastPathAlgo.gen_full_path(self.__map.obstacleMap, self.__map.waypoint)
+                    print(shortestPath)
                     self.btnSimFastPath.setEnabled(True)
         except Exception as err:
             print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Error msg: {err}")

@@ -16,11 +16,14 @@ class GraphicsMgr(QObject):
     signalStartExpl = pyqtSignal()
     signalStartFP = pyqtSignal()
     signalStartImgRecog = pyqtSignal()
-    signalSetWaypoint = pyqtSignal(str)
-    signalNextMove = pyqtSignal()
+    signalStopFP = pyqtSignal()
+    # signalNextMove = pyqtSignal()
 
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
+        self.__shortestPath = None
+        self.__spIndex = 0
+
         self.__scene = scene
         self.__map = map
         self.__robotObject = RobotObject()
@@ -119,5 +122,73 @@ class GraphicsMgr(QObject):
         self.signalNextAstarCmd.emit()
 
     @pyqtSlot(str)
-    def interpretCmd(self, cmd):
-        print(f'Cmd: {cmd}')
+    def interpretCmd(self, msg):
+        # need communication protocol for
+        #   p               start fast path
+        #   i               start img recog
+        #   e               start expl
+        #   f               forward
+        #   l               rotate left
+        #   r               rotate right
+        #   x,y             FPW(len == 2)
+        #   1,1,1,1,1,1     sensor data (len == 6)
+        print(f'Msg: {msg}')
+        try:
+            if msg == 'p':
+                print('[Android-Algo] Start FP\n')
+                self.signalStartFP.emit()
+            elif msg == 'i':
+                print('[Android-Algo] Start Img Recog\n')
+                self.signalStartImgRecog.emit()
+            elif msg == 't':
+                print('[Android-Algo] Start Expl\n')
+                self.signalStartExpl.emit()
+            elif msg == 'f':
+                print('[Arduino-Algo] Move robot forward\n')
+                self.__robot.moveRobotForward()
+                if self.__shortestPath is not None:
+                    self.__spIndex = self.__spIndex + 1
+                    if self.__spIndex == len(self.__shortestPath):
+                        self.__shortestPath = 0
+                        self.__spIndex = 0
+                        self.signalStopFP.emit()
+            elif msg == 'l':
+                print('[Arduino-Algo] Rotate robot left\n')
+                self.__robot.rotateRobotLeft()
+                if self.__shortestPath is not None:
+                    self.__spIndex = self.__spIndex + 1
+                    if self.__spIndex == len(self.__shortestPath):
+                        self.__shortestPath = 0
+                        self.__spIndex = 0
+                        self.signalStopFP.emit()
+            elif msg == 'r':
+                print('[Arduino-Algo] Rotate robot right\n')
+                self.__robot.rotateRobotRight()
+                if self.__shortestPath is not None:
+                    self.__spIndex = self.__spIndex + 1
+                    if self.__spIndex == len(self.__shortestPath):
+                        self.__shortestPath = 0
+                        self.__spIndex = 0
+                        self.signalStopFP.emit()
+            else:
+                data = msg.split(',')
+                if len(data) == 2:      # FPW
+                    print(f'[Android-Algo] FPW: {data}\n')
+                    coordinate = [int(data[0]), int(data[1])]
+                    self.__map.waypoint = coordinate
+                elif len(data) == 6:    # sensor data
+                    print(f'[Arduino-Algo] Sensor data: {data}\n')
+                    pass
+                else:
+                    print('invalid msg\n')
+        except Exception as err:
+            print(f'graphicsMgr::interpretCmd Error msg: {err}\n')
+
+    def setShortestPath(self, shortestPath):
+        self.__shortestPath = shortestPath
+        self.__spIndex = 0
+
+    @pyqtSlot()
+    def resetShortestPath(self):
+        self.__shortestPath = None
+        self.__spIndex = 0

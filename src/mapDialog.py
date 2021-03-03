@@ -13,6 +13,8 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
         self.__map = map
         self.__p1FileName = ""
         self.__p2FileName = ""
+        self.__p1String = ''
+        self.__p2String = ''
 
         self.btnP1LoadFile.clicked.connect(self.btnP1LoadFileClicked)
         self.btnP2LoadFile.clicked.connect(self.btnP2LoadFileClicked)
@@ -78,6 +80,7 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
         try:
             with open(self.__p1FileName, 'r') as f:
                 p1HexStr = f.read()
+                self.__p1String = p1HexStr
                 if len(p1HexStr) > 76:
                     p1HexStr = p1HexStr[0:76]
 
@@ -88,6 +91,7 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
 
             with open(self.__p2FileName, 'r') as f:
                 p2HexStr = f.read()
+                self.__p2String = p2HexStr
                 p2BinStr = ''
                 for c in p2HexStr:
                     p2BinStr += self.__hexConvertorDict[c]
@@ -110,3 +114,9 @@ class MapDialog(QDialog, mapdialog.Ui_mapDialog):
             self.accept()
         except Exception as err:
             print(f"[ERROR] mapDialog::btnLoadExplClicked! Error msg: {err}")
+
+    def getP1String(self):
+        return self.__p1String
+
+    def getP2String(self):
+        return self.__p2String
