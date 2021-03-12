@@ -10,7 +10,7 @@ class RobotSensorConfiguration:
             SimShortRangeSensor(SensorLocation.FRONT, 2, map),
             SimShortRangeSensor(SensorLocation.LEFT, 0, map),
             SimShortRangeSensor(SensorLocation.LEFT, 2, map),
-            SimLongRangeSensor(SensorLocation.RIGHT, 2, map)
+            SimLongRangeSensor(SensorLocation.RIGHT, 0, map)
         ]
 
     def senseAll(self, robotBearing, robotX, robotY):

@@ -25,6 +25,7 @@ from mapDialog import MapDialog
 from tcpClient import TcpClient
 from actualExplAlgo import ActlExplAlgo
 from actualFastPathAlgo import ActlFastPathAlgo
+from actualImgRecogAlgo import ActlImgRecogAlgo
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
@@ -136,15 +137,19 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__tcpClient.connected.connect(self.enableSendMsg)  # TODO: Remove after testing
         self.__tcpClient.interpretCmd.connect(self.__graphicsMgr.interpretCmd)
 
-        # Actual Exploration Algo
-        self.__explThread = QThread()
-        self.__actlExplAlgo = ActlExplAlgo()
-
         # Actual Fast Path Algo
         self.__actlFpThread = QThread()
         self.__actlFpAlgo = ActlFastPathAlgo()
         self.__actlFpThread.started.connect(lambda: print('Actual Fastest Path Started\n'))
         self.__actlFpThread.started.connect(lambda: self.btnCalibrate.setEnabled(False))
+
+        # Actual Img Recognition Algo
+        self.__actlImgRecogThread = QThread()
+        self.__actlImgRecogAlgo = ActlImgRecogAlgo()
+
+        # Actual Exploration Algo
+        self.__actlExplThread = QThread()
+        self.__actlExplAlgo = ActlExplAlgo()
 
         # TODO: Remove this after testing
         self.leMsg.setEnabled(False)
@@ -200,7 +205,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__actlFpAlgo.finished.connect(self.__graphicsMgr.resetShortestPath)
         self.__actlFpAlgo.finished.connect(lambda: print('Actual Fastest Path Stopped\n'))
         self.__actlFpAlgo.finished.connect(self.enableMapSetting)
-        self.__thread.finished.connect(self.__actlFpAlgo.deleteLater)
+        self.__actlFpThread.finished.connect(self.__actlFpAlgo.deleteLater)
         self.__graphicsMgr.signalStopFP.connect(self.__actlFpAlgo.finished)
         # Signal-Slot for FP-Robot communication
         self.__actlFpAlgo.signalSendCmd.connect(self.__tcpClient.send_message)
@@ -413,8 +418,29 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         print(f'p1: {p1}')
         print(f'p2: {p2}')
 
+    @pyqtSlot()
+    def startActlImgRecog(self):
+        self.btnLoadMap.setEnabled(False)
+        self.btnResetMap.setEnabled(False)
+        self.btnPrepForMaze.setEnabled(False)
+
+        self.__actlImgRecogAlgo = ActlImgRecogAlgo()
+        self.__actlImgRecogAlgo.moveToThread(self.__actlImgRecogThread)
+        # Signal-Slot for thread management
+        self.__actlImgRecogThread.started.connect(self.__actlImgRecogAlgo.run)
+        self.__actlImgRecogAlgo.finished.connect(self.__actlImgRecogThread.quit)
+        self.__actlImgRecogAlgo.finished.connect(lambda: print('Actual Image Recognition Stopped\n'))
+        self.__actlImgRecogAlgo.finished.connect(self.enableMapSetting)
+        self.__actlImgRecogThread.finished.connect(self.__actlImgRecogAlgo.deleteLater())
+        # Signal-Slot for communication
+        self.__actlImgRecogAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
+        self.__graphicsMgr.signalDetectionResult.connect(self.__actlImgRecogAlgo.save_prediction)
+
+        print('Actual Image Recognition Started')
+        self.__actlImgRecogThread.start()
+
     def startExpl(self):
         self.__actlExplAlgo = ActlExplAlgo()
-        self.__actlExplAlgo.moveToThread(self.__explThread)
+        self.__actlExplAlgo.moveToThread(self.__actlExplThread)
         # Signal-Slot for thread management
-        self.__explThread.started.connect(self.__actlExplAlgo.run)
+        self.__actlExplThread.started.connect(self.__actlExplAlgo.run)

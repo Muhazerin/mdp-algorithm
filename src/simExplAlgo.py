@@ -57,11 +57,6 @@ class SimExplAlgo(QObject):
                 self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEARCH
             else:
                 self.__stop = True
-        elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_FINISHED:
-            if coverage_per < self.__coverage:
-                self.__algoStatus = AlgoStatus.FP_UNEXPLORED_SEARCH
-            else:
-                self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
         elif self.__algoStatus == AlgoStatus.LEFT_WALL_HUG:
             robot_center = allCorners[0][:]
             robot_center[0] = robot_center[0] + 1
@@ -92,7 +87,7 @@ class SimExplAlgo(QObject):
                     self.__algoStatus = AlgoStatus.FP_HOME_SEEK
                     self.__move_cmd = gen_move_cmd(dest_node)
                     self.__move_cmd_index = -1
-                    self.send_a_star_move_cmd()
+                    self.send_a_star_move_cmd_no_sense()
             elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_SEARCH:
                 robot_center = allCorners[0][:]
                 robot_center[0] = robot_center[0] + 2
@@ -121,9 +116,11 @@ class SimExplAlgo(QObject):
                         self.signalMoveRobotForward.emit()
                         self.signalSense.emit()
                     elif frontLeftDict['L'] == 1 and frontLeftDict['F'] == 1:  # if left and front is not free
+                        self.__no_of_left_rotation -= 1
                         self.signalRotateRobotRight.emit()
                         self.signalSense.emit()
                     elif frontLeftDict['L'] == 0:  # if left is free, turn left to hug the left wall
+                        self.__no_of_left_rotation += 1
                         self.__robotJustTurnedLeft = True
                         self.signalRotateRobotLeft.emit()
                         self.signalSense.emit()
@@ -164,7 +161,6 @@ class SimExplAlgo(QObject):
             else:
                 self.__move_cmd_index = -1
                 self.__move_cmd = None
-                self.__algoStatus = AlgoStatus.FP_HOME_FINISHED
                 self.__stop = True
                 self.finished.emit()
         else:

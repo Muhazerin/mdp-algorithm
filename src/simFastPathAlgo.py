@@ -204,13 +204,13 @@ class SimFastPathAlgo(QObject):
     def run(self):
         print(len(self._fastestPath))
         for c in self._fastestPath:
-            if c == "TL":
+            if c == "l":
                 self.signalRotateRobotLeft.emit()
                 time.sleep(TIME)
-            elif c == "TR":
+            elif c == "r":
                 self.signalRotateRobotRight.emit()
                 time.sleep(TIME)
-            elif c == "F":
+            elif c == "f":
                 self.signalMoveRobotForward.emit()
                 time.sleep(TIME)
         self.__stop = True

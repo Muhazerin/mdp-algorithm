@@ -418,6 +418,9 @@ def find_nearest_obstacle(unexplored_grid_coordinate, obstacle_map):
                             return [row, col]
 
 
+
+
+
 def get_surrounding_obstacle(obstacle_coordinate, explored_map, obstacle_map):
     list_of_coordinates = list()
     coordinates = [
@@ -429,28 +432,89 @@ def get_surrounding_obstacle(obstacle_coordinate, explored_map, obstacle_map):
     for coordinate in coordinates:
         row = coordinate[0]
         col = coordinate[1]
+        valid_grid = True
         if 0 <= row <= 19 and 0 <= col <= 14:
             if explored_map[row][col] == 1 and obstacle_map[row][col] == 0:
                 if coordinate == coordinates[0]:
-                    list_of_coordinates.append({
-                        'robot_pos': [col + 1, row + 2],
-                        'bearing': Bearing.WEST
-                    })
+                    # if top is free, i need to check 3x3 block if it is empty
+                    for r in range(row, row + 3):
+                        if 0 <= r <= 19 and valid_grid:
+                            for c in range(col - 1, col + 2):
+                                if 0 <= c <= 14:
+                                    if explored_map[r][c] == 1 and obstacle_map[r][c] == 1:
+                                        valid_grid = False
+                                        break
+                                else:
+                                    valid_grid = False
+                                    break
+                        else:
+                            valid_grid = False
+                            break
+                    if valid_grid:
+                        list_of_coordinates.append({
+                            'robot_pos': [col + 1, row + 2],
+                            'bearing': Bearing.WEST
+                        })
                 elif coordinate == coordinates[1]:
-                    list_of_coordinates.append({
-                        'robot_pos': [col + 1, row],
-                        'bearing': Bearing.EAST
-                    })
+                    # if bottom is free, i need to check 3x3 block if it is empty
+                    for r in range(row, row - 3, -1):
+                        if 0 <= r <= 19 and valid_grid:
+                            for c in range(col - 1, col + 2):
+                                if 0 <= c <= 14:
+                                    if explored_map[r][c] == 1 and obstacle_map[r][c] == 1:
+                                        valid_grid = False
+                                        break
+                                else:
+                                    valid_grid = False
+                                    break
+                        else:
+                            valid_grid = False
+                            break
+                    if valid_grid:
+                        list_of_coordinates.append({
+                            'robot_pos': [col + 1, row],
+                            'bearing': Bearing.EAST
+                        })
                 elif coordinate == coordinates[2]:
-                    list_of_coordinates.append({
-                        'robot_pos': [col, row + 1],
-                        'bearing': Bearing.SOUTH
-                    })
+                    # if right is free, i need to check 3x3 block if it is empty
+                    for r in range(row - 1, row + 2):
+                        if 0 <= r <= 19 and valid_grid:
+                            for c in range(col, col + 3):
+                                if 0 <= c <= 14:
+                                    if explored_map[r][c] == 1 and obstacle_map[r][c] == 1:
+                                        valid_grid = False
+                                        break
+                                else:
+                                    valid_grid = False
+                                    break
+                        else:
+                            valid_grid = False
+                            break
+                    if valid_grid:
+                        list_of_coordinates.append({
+                            'robot_pos': [col + 2, row + 1],
+                            'bearing': Bearing.NORTH
+                        })
                 else:
-                    list_of_coordinates.append({
-                        'robot_pos': [col + 2, row + 1],
-                        'bearing': Bearing.NORTH
-                    })
+                    # if left is free, i need to check 3x3 block if it is empty
+                    for r in range(row - 1, row + 2):
+                        if 0 <= r <= 19 and valid_grid:
+                            for c in range(col, col - 3, -1):
+                                if 0 <= c <= 14:
+                                    if explored_map[r][c] == 1 and obstacle_map[r][c] == 1:
+                                        valid_grid = False
+                                        break
+                                else:
+                                    valid_grid = False
+                                    break
+                        else:
+                            valid_grid = False
+                            break
+                    if valid_grid:
+                        list_of_coordinates.append({
+                            'robot_pos': [col, row + 1],
+                            'bearing': Bearing.SOUTH
+                        })
     return list_of_coordinates
 
 

@@ -5,6 +5,8 @@ import time
 
 from PyQt5.QtWidgets import QGraphicsGridLayout
 
+from src.constants import Bearing
+
 TIME = 0.1
 CARDINAL = 10
 DIAGONAL = 14
@@ -161,8 +163,151 @@ class ActlFastPathAlgo(QObject):
                     res.append((x + i, y + j))
         return res
 
+    # code for calibration
+    # def add_calibration(grid, pos, bearing, commands):
+    #     try:
+    #         if bearing == Bearing.NORTH:
+    #             if (grid[pos[1] + 1][pos[0] - 1] == 1 and grid[pos[1] + 1][pos[0]] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[1] + 1 >= len(grid):
+    #                 commands.append("f")
+    #             elif (grid[pos[1] - 1][pos[0] - 1] == 1 and grid[pos[1]][pos[0] - 1] == 1 and grid[pos[1] + 1][
+    #                 pos[0] - 1] == 1) or pos[0] - 1 < 0:
+    #                 commands.append("s")
+    #             elif (grid[pos[1] - 1][pos[0] + 1] == 1 and grid[pos[1]][pos[0] + 1] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[0] + 1 >= len(grid[0]):
+    #                 commands.append("r")
+    #                 commands.append("f")
+    #                 commands.append("l")
+    #         elif bearing == Bearing.SOUTH:
+    #             if (grid[pos[1] - 1][pos[0] - 1] and grid[pos[1] - 1][pos[0]] and grid[pos[1] - 1][pos[0] + 1] == 1) or pos[
+    #                 1] - 1 < 0:
+    #                 commands.append("f")
+    #             elif (grid[pos[1] - 1][pos[0] + 1] == 1 and grid[pos[1]][pos[0] + 1] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[0] + 1 >= len(grid[0]):
+    #                 commands.append("s")
+    #             elif (grid[pos[1] - 1][pos[0] - 1] == 1 and grid[pos[1]][pos[0] - 1] == 1 and grid[pos[1] + 1][
+    #                 pos[0] - 1] == 1) or pos[0] + 1 < 0:
+    #                 commands.append("r")
+    #                 commands.append("f")
+    #                 commands.append("l")
+    #         elif bearing == Bearing.EAST:
+    #             if (grid[pos[1] - 1][pos[0] + 1] == 1 and grid[pos[1]][pos[0] + 1] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[0] + 1 >= len(grid[0]):
+    #                 commands.append("f")
+    #             elif (grid[pos[1] + 1][pos[0] - 1] == 1 and grid[pos[1] + 1][pos[0]] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[1] + 1 >= len(grid):
+    #                 commands.append("s")
+    #             elif (grid[pos[1] - 1][pos[0] - 1] == 1 and grid[pos[1] - 1][pos[0]] == 1 and grid[pos[1] - 1][
+    #                 pos[0] + 1]) == 1 or pos[1] - 1 < 0:
+    #                 commands.append("r")
+    #                 commands.append("f")
+    #                 commands.append("l")
+    #         elif bearing == Bearing.WEST:
+    #             if (grid[pos[1] - 1][pos[0] - 1] and grid[pos[1]][pos[0] - 1] and grid[pos[1] + 1][pos[0] - 1]) == 1 or pos[
+    #                 0] - 1 < 0:
+    #                 commands.append("f")
+    #             elif (grid[pos[1] - 1][pos[0] - 1] == 1 and grid[pos[1] - 1][pos[0]] == 1 and grid[pos[1] - 1][
+    #                 pos[0] + 1] == 1) or pos[1] - 1 < 0:
+    #                 commands.append("s")
+    #             elif (grid[pos[1] + 1][pos[0] - 1] == 1 and grid[pos[1] + 1][pos[0]] == 1 and grid[pos[1] + 1][
+    #                 pos[0] + 1] == 1) or pos[1] + 1 >= len(grid):
+    #                 commands.append("r")
+    #                 commands.append("f")
+    #                 commands.append("l")
+    #     except Exception as err:
+    #         print(f'add_calibration error: {err}')
+
+    def add_calibration_2(self, obstacle_map, pos, bearing, fPath):
+        if bearing == Bearing.NORTH:
+            col = pos[0] - 2
+            row = pos[1] + 2
+            if row > 19 and col < 0:
+                fPath.append('sf')
+            else:
+                if 0 <= col <= 14:
+                    if 0 <= row <= 19:
+                        col = pos[0] - 2
+                        row = pos[1] - 1
+                        if obstacle_map[row][col] == 1 and obstacle_map[row + 1][col] == 1 and obstacle_map[row + 2][col] == 1:
+                            fPath.append('s')
+
+                        col = pos[0] - 1
+                        row = pos[1] + 2
+                        if obstacle_map[row][col] == 1 and obstacle_map[row][col + 1] == 1 and obstacle_map[row][col + 2] == 1:
+                            fPath.append('f')
+                    else:
+                        fPath.append('f')
+                else:
+                    fPath.append('s')
+        elif bearing == Bearing.SOUTH:
+            col = pos[0] + 2
+            row = pos[1] - 2
+            if row < 0 and col > 14:
+                fPath.append('sf')
+            else:
+                if 0 <= col <= 14:
+                    if 0 <= row <= 19:
+                        col = pos[0] + 2
+                        row = pos[1] - 1
+                        if obstacle_map[row][col] == 1 and obstacle_map[row + 1][col] == 1 and obstacle_map[row + 2][col] == 1:
+                            fPath.append('s')
+
+                        col = pos[0] - 1
+                        row = pos[1] - 2
+                        if obstacle_map[row][col] == 1 and obstacle_map[row][col + 1] == 1 and obstacle_map[row][col + 2] == 1:
+                            fPath.append('f')
+                    else:
+                        fPath.append('f')
+                else:
+                    fPath.append('s')
+        elif bearing == Bearing.EAST:
+            col = pos[0] + 2
+            row = pos[1] + 2
+            if row > 19 and col > 14:
+                fPath.append('sf')
+            else:
+                if 0 <= row <= 19:
+                    if 0 <= col <= 14:
+                        col = pos[0] - 1
+                        row = pos[1] + 2
+                        if obstacle_map[row][col] == 1 and obstacle_map[row][col + 1] == 1 and obstacle_map[row][col + 2] == 1:
+                            fPath.append('s')
+
+                        col = pos[0] + 2
+                        row = pos[1] - 1
+                        if obstacle_map[row][col] == 1 and obstacle_map[row + 1][col] == 1 and obstacle_map[row + 2][col] == 1:
+                            fPath.append('f')
+                    else:
+                        fPath.append('f')
+                else:
+                    fPath.append('s')
+        elif bearing == Bearing.WEST:
+            col = pos[0] - 2
+            row = pos[1] - 2
+            if row < 0 and col < 0:
+                fPath.append('sf')
+            else:
+                if 0 <= row <= 19:
+                    if 0 <= col <= 14:
+                        col = pos[0] - 1
+                        row = pos[1] - 2
+                        if obstacle_map[row][col] == 1 and obstacle_map[row][col + 1] == 1 and obstacle_map[row][col + 2] == 1:
+                            fPath.append('s')
+
+                        col = pos[0] - 2
+                        row = pos[1] - 1
+                        if obstacle_map[row][col] == 1 and obstacle_map[row + 1][col] == 1 and obstacle_map[row + 2][col] == 1:
+                            fPath.append('f')
+                    else:
+                        fPath.append('f')
+                else:
+                    fPath.append('s')
+
     # combine 2 half paths generated from gen_half_path
     def gen_full_path(self, grid, waypoint):
+        obstacle_map = []
+        for row in grid:
+            obstacle_map.append(row[:])
         ActlFastPathAlgo.preprocess(grid)
         waypoint = ActlFastPathAlgo.check_waypoint(grid, waypoint)
         # reverse coordinates to fit grid system used in fastest path algorithm
@@ -179,20 +324,114 @@ class ActlFastPathAlgo(QObject):
                 cost = cost1 + cost2
                 self._fastestPath = route
         commands = ActlFastPathAlgo.convert_commands(route)
+        # uncomment if they dont want calibration
         self._fastestPath = commands
+
+        # if they want calibration
+        # pos = [1, 1]
+        # bearing = Bearing.NORTH
+        # fPath = []
+        # print(len(commands))
+        # for i in range(len(commands) - 1):
+        #     print(i)
+        #     print(commands[i])
+        #     print()
+        #     if commands[i] == 'l':
+        #         bearing = Bearing.rotateLeft(bearing)
+        #         fPath.append(commands[i])
+        #         self.add_calibration_2(obstacle_map, pos, bearing, fPath)
+        #     elif commands[i] == 'r':
+        #         bearing = Bearing.rotateRight(bearing)
+        #         fPath.append(commands[i])
+        #         self.add_calibration_2(obstacle_map, pos, bearing, fPath)
+        #     else:
+        #         n = int(commands[i])
+        #         if bearing == Bearing.NORTH:
+        #             pos[1] += n
+        #         elif bearing == Bearing.SOUTH:
+        #             pos[1] -= n
+        #         elif bearing == Bearing.EAST:
+        #             pos[0] += n
+        #         else:
+        #             pos[0] -= n
+        #         fPath.append(commands[i])
+        #         self.add_calibration_2(obstacle_map, pos, bearing, fPath)
+        # fPath.append(commands[len(commands) - 1])
+        # self._fastestPath = fPath
+
+        # for i in range(1, len(commands)):
+        #     print(bearing)
+        #     if commands[i] == 'l':
+        #         ActlFastPathAlgo.add_calibration(grid, pos, bearing, fPath)
+        #         bearing = Bearing.rotateLeft(bearing)
+        #     elif commands[i] == 'r':
+        #         print('1')
+        #         ActlFastPathAlgo.add_calibration(grid, pos, bearing, fPath)
+        #         print('2')
+        #         bearing = Bearing.rotateRight(bearing)
+        #         print('3')
+        #     elif commands[i] == '9':
+        #         ActlFastPathAlgo.add_calibration(grid, pos, bearing, fPath)
+        #         if bearing == Bearing.NORTH:
+        #             pos[1] += int(commands[i])
+        #         elif bearing == Bearing.SOUTH:
+        #             pos[1] -= int(commands[i])
+        #         elif bearing == Bearing.EAST:
+        #             pos[0] += int(commands[i])
+        #         else:
+        #             pos[0] -= int(commands[i])
+        #     else:
+        #         if bearing == Bearing.NORTH:
+        #             pos[1] += int(commands[i])
+        #         elif bearing == Bearing.SOUTH:
+        #             pos[1] -= int(commands[i])
+        #         elif bearing == Bearing.EAST:
+        #             pos[0] += int(commands[i])
+        #         else:
+        #             pos[0] -= int(commands[i])
+        #     fPath.append(commands[i])
+        # self._fastestPath = fPath
         return self._fastestPath
 
     def convert_commands(num_route):
         commands = []
+        count = 0
         for i in range(1, len(num_route)):
             if num_route[i] == num_route[i - 1] - 2 or (num_route[i] == 6 and num_route[i - 1] == 0):
+                if count > 0:
+                    if count > 9:
+                        commands.append(str(9))
+                        commands.append(str(count - 9))
+                    else:
+                        commands.append(str(count))
+                    count = 0
                 commands.append("l")
             elif num_route[i] == num_route[i - 1] + 2 or (num_route[i] == 0 and num_route[i - 1] == 6):
+                if count > 0:
+                    if count > 9:
+                        commands.append(str(9))
+                        commands.append(str(count - 9))
+                    else:
+                        commands.append(str(count))
+                    count = 0
                 commands.append("r")
             elif abs(num_route[i] - num_route[i - 1]) == 4:
+                if count > 0:
+                    if count > 9:
+                        commands.append(str(9))
+                        commands.append(str(count - 9))
+                    else:
+                        commands.append(str(count))
+                    count = 0
                 commands.append("l")
                 commands.append("l")
-            commands.append("f")
+            count = count + 1
+        if count > 0:
+            if count > 9:
+                commands.append(str(9))
+                commands.append(str(count - 9))
+            else:
+                commands.append(str(count))
         return commands
 
     def run(self):

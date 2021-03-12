@@ -125,9 +125,7 @@ class SimRobot(Robot):
         self.__sensorConfig.senseAll(self.bearing, self.x, self.y)
         self.checkFrontLeft()
 
-    # emits a signal with a dictionary
-    # { 'F' : <0,1>, 'L' : <0,1> } 0 -> No obstacle, 1 -> obstacle
-    def checkFrontLeft(self):
+    def get_all_corners(self):
         x = int(self.x / 40)
         y = int(abs(self.y) / 40)
 
@@ -138,7 +136,18 @@ class SimRobot(Robot):
         bottomRightCorner = [x + 2, y - 4]
         allCorners = [topLeftCorner, topRightCorner, bottomLeftCorner, bottomRightCorner]
 
+        return allCorners
+
+    # emits a signal with a dictionary
+    # { 'F' : <0,1>, 'L' : <0,1> } 0 -> No obstacle, 1 -> obstacle
+    def checkFrontLeft(self):
+        allCorners = self.get_all_corners()
+
         frontLeftDict = {'F': 0, 'L': 0}
+        topLeftCorner = allCorners[0]
+        topRightCorner = allCorners[1]
+        bottomLeftCorner = allCorners[2]
+        bottomRightCorner = allCorners[3]
 
         if self.bearing == Bearing.NORTH:
             # Check the front

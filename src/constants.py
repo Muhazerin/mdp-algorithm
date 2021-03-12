@@ -12,11 +12,9 @@ class AlgoStatus(IntEnum):
     SEEK_HOME = 1
     FP_UNEXPLORED_SEARCH = 2
     FP_UNEXPLORED_SEEK = 3
-    FP_UNEXPLORED_FINISHED = 4
+    LEFT_WALL_HUG = 4
     FP_HOME_SEARCH = 5
     FP_HOME_SEEK = 6
-    FP_HOME_FINISHED = 7
-    LEFT_WALL_HUG = 8
 
 
 class ImgRecogAlgoStatus(IntEnum):

@@ -1,5 +1,3 @@
-import time
-
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from constants import ImgRecogAlgoStatus, Bearing
 from simExplFastPath import a_star_search, gen_move_cmd
@@ -18,19 +16,61 @@ def find_nearest_obstacle(list_of_coordinates, current_robot_center):
     return list_of_coordinates[min_index]
 
 
-class SimImgRecogAlgo(QObject):
+def can_calibrate(robot_bearing, obstacle_map, all_corners):
+    if robot_bearing == Bearing.NORTH:
+        coordinate = all_corners[2]
+        if coordinate[0] < 0:  # if the col is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1] + 2][coordinate[0]] == 1:
+            # if there are obstacle on top and bottom left
+            return True
+        else:
+            return False
+    elif robot_bearing == Bearing.EAST:
+        coordinate = all_corners[0]
+        if coordinate[1] > 19:  # if the row is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1]][coordinate[0] + 2] == 1:
+            # if there are obstacle on top and bottom left
+            return True
+        else:
+            return False
+    elif robot_bearing == Bearing.SOUTH:
+        coordinate = all_corners[1]
+        if coordinate[0] > 14:  # if the col is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1] - 2][coordinate[0]] == 1:
+            # if there are obstacle on top and bottom left
+            return True
+        else:
+            return False
+    else:
+        coordinate = all_corners[3]
+        if coordinate[1] < 0:  # if the row is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1]][coordinate[0] - 2] == 1:
+            # if there are obstacle on top and bottom left
+            return True
+        else:
+            return False
+
+
+def pack_msg(message):
+    return 'EC|' + message
+
+
+class ActlImgRecogAlgo(QObject):
     finished = pyqtSignal()
-    signalSense = pyqtSignal()
-    signalMoveRobotForward = pyqtSignal()
-    signalMoveRobotBackward = pyqtSignal()
-    signalRotateRobotRight = pyqtSignal()
-    signalRotateRobotLeft = pyqtSignal()
-    signalTakePic = pyqtSignal()
+    signalSendMsg = pyqtSignal(str)
+    # signalTakePic = pyqtSignal()
 
     def __init__(self):
-        super(SimImgRecogAlgo, self).__init__()
+        super(ActlImgRecogAlgo, self).__init__()
         self.__stop = False
-        self.__time = 0.05
         self.__algo_status = ImgRecogAlgoStatus.SEEK_GOAL
         self.__robot_just_turned_left = False
         self.__front_left_dict = dict()
@@ -39,6 +79,7 @@ class SimImgRecogAlgo(QObject):
         self.__initial_pos = None
         self.__no_of_left_rotation = 0
         self.__img_id = set()
+        self.__pic_taken = False
         self.__obstacle_left_hug_map = [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -124,50 +165,6 @@ class SimImgRecogAlgo(QObject):
             [[-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None],
              [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None],
              [-1, 0, None]]
-        ]
-
-        # [img_id, facing] --> [0, 'S'] mean img_id 0 is only viewable when robot bearing is E and it take photo
-        self.__imgMap = [
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [0, 'N'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[1, 'S'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [2, 'E'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [3, 'S'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [4, 'N'], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]]
         ]
 
     def reset_map(self):
@@ -257,53 +254,6 @@ class SimImgRecogAlgo(QObject):
              [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None], [-1, 0, None],
              [-1, 0, None]]
         ]
-
-        # [img_id, facing] --> [0, 'S'] mean img_id 0 is only viewable when robot bearing is E and it take photo
-        self.__imgMap = [
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [0, 'N'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[1, 'S'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [2, 'E'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [3, 'S'], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [4, 'N'], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]],
-            [[-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None],
-             [-1, None], [-1, None], [-1, None], [-1, None], [-1, None], [-1, None]]
-        ]
-
-    def set_time(self, sleep_time):
-        self.__time = sleep_time
 
     # check the top, bottom, left, right of the r,c if the robot has left hug the obstacle
     # robot pos is in x,y coordinate
@@ -427,80 +377,13 @@ class SimImgRecogAlgo(QObject):
                                     self.__imgRecMap[row][col][2] = robot_bearing
                                     break
         except Exception as err:
-            print(f'simImgRecogAlgo::mark_img() Error msg: {err}')
+            print(f'actlImgRecogAlgo::mark_img() Error msg: {err}')
             self.finished.emit()
-
-    def check_for_image(self, robot_bearing, all_corners, obstacle_map):
-        if robot_bearing == Bearing.NORTH:
-            coordinate = all_corners[2]
-            for row in range(coordinate[1], coordinate[1] + 3):
-                if 0 <= row <= 19:
-                    for col in range(coordinate[0], coordinate[0] - 3, -1):
-                        if 0 <= col <= 14:
-                            if obstacle_map[row][col] == 1:
-                                if self.__imgMap[row][col][0] != -1:  # if there is an img on the obs
-                                    if (self.__imgMap[row][col][1] == 'N' and robot_bearing == Bearing.WEST) or \
-                                            (self.__imgMap[row][col][1] == 'E' and robot_bearing == Bearing.NORTH) or \
-                                            (self.__imgMap[row][col][1] == 'S' and robot_bearing == Bearing.EAST) or \
-                                            (self.__imgMap[row][col][1] == 'W' and robot_bearing == Bearing.SOUTH):
-                                        self.__img_id.add(self.__imgMap[row][col][0])
-                                        self.mark_img(robot_bearing, coordinate, obstacle_map,
-                                                      self.__imgMap[row][col][0])
-                                        break
-        elif robot_bearing == Bearing.EAST:
-            coordinate = all_corners[0]
-            for col in range(coordinate[0], coordinate[0] + 3):
-                if 0 <= col <= 14:
-                    for row in range(coordinate[1], coordinate[1] + 3):
-                        if 0 <= row <= 19:
-                            if obstacle_map[row][col] == 1:
-                                if self.__imgMap[row][col][0] != -1:  # if there is an img on the obs
-                                    if (self.__imgMap[row][col][1] == 'N' and robot_bearing == Bearing.WEST) or \
-                                            (self.__imgMap[row][col][1] == 'E' and robot_bearing == Bearing.NORTH) or \
-                                            (self.__imgMap[row][col][1] == 'S' and robot_bearing == Bearing.EAST) or \
-                                            (self.__imgMap[row][col][1] == 'W' and robot_bearing == Bearing.SOUTH):
-                                        self.__img_id.add(self.__imgMap[row][col][0])
-                                        self.mark_img(robot_bearing, coordinate, obstacle_map,
-                                                      self.__imgMap[row][col][0])
-                                        break
-        elif robot_bearing == Bearing.SOUTH:
-            coordinate = all_corners[1]
-            for row in range(coordinate[1], coordinate[1] - 3, -1):
-                if 0 <= row <= 19:
-                    for col in range(coordinate[0], coordinate[0] + 3):
-                        if 0 <= col <= 14:
-                            if obstacle_map[row][col] == 1:
-                                if self.__imgMap[row][col][0] != -1:  # if there is an img on the obs
-                                    if (self.__imgMap[row][col][1] == 'N' and robot_bearing == Bearing.WEST) or \
-                                            (self.__imgMap[row][col][1] == 'E' and robot_bearing == Bearing.NORTH) or \
-                                            (self.__imgMap[row][col][1] == 'S' and robot_bearing == Bearing.EAST) or \
-                                            (self.__imgMap[row][col][1] == 'W' and robot_bearing == Bearing.SOUTH):
-                                        self.__img_id.add(self.__imgMap[row][col][0])
-                                        self.mark_img(robot_bearing, coordinate, obstacle_map,
-                                                      self.__imgMap[row][col][0])
-                                        break
-        else:
-            coordinate = all_corners[3]
-            for col in range(coordinate[0], coordinate[0] - 3, -1):
-                if 0 <= col <= 19:
-                    for row in range(coordinate[1], coordinate[1] - 3, -1):
-                        if 0 <= row <= 14:
-                            if obstacle_map[row][col] == 1:
-                                if self.__imgMap[row][col][0] != -1:  # if there is an img on the obs
-                                    if (self.__imgMap[row][col][1] == 'N' and robot_bearing == Bearing.WEST) or \
-                                            (self.__imgMap[row][col][1] == 'E' and robot_bearing == Bearing.NORTH) or \
-                                            (self.__imgMap[row][col][1] == 'S' and robot_bearing == Bearing.EAST) or \
-                                            (self.__imgMap[row][col][1] == 'W' and robot_bearing == Bearing.SOUTH):
-                                        self.__img_id.add(self.__imgMap[row][col][0])
-                                        self.mark_img(robot_bearing, coordinate, obstacle_map,
-                                                      self.__imgMap[row][col][0])
-                                        break
 
     @pyqtSlot(dict, list, list, list, int)
     def determine_move(self, front_left_dict, all_corners, explored_map, obstacle_map, robot_bearing):
         print()
         self.__front_left_dict = front_left_dict
-        print(self.__algo_status)
         if self.__algo_status == ImgRecogAlgoStatus.SEEK_GOAL and [15, 19] in all_corners:
             self.__algo_status = ImgRecogAlgoStatus.SEEK_HOME
         elif self.__algo_status == ImgRecogAlgoStatus.SEEK_HOME and [-1, 0] in all_corners:
@@ -522,6 +405,8 @@ class SimImgRecogAlgo(QObject):
                     self.__stop = True
 
         if not self.__stop:
+            if can_calibrate(robot_bearing, obstacle_map, all_corners):
+                self.signalSendMsg(pack_msg('c'))
             if self.__algo_status == ImgRecogAlgoStatus.SEARCH_OBSTACLE:
                 list_of_coordinates = self.obstacle_without_left_hug(explored_map, obstacle_map)
                 # if there is obstacle without left hug, fp to nearest obstacle
@@ -545,61 +430,53 @@ class SimImgRecogAlgo(QObject):
                 else:
                     self.__stop = True
             elif self.__algo_status == ImgRecogAlgoStatus.LEFT_WALL_HUG:
-                time.sleep(self.__time)
                 left_obstacle = self.is_left_obstacle(robot_bearing, all_corners, obstacle_map)
-                if left_obstacle:
-                    self.signalTakePic.emit()
-                    self.check_for_image(robot_bearing, all_corners, obstacle_map)
+                if left_obstacle and not self.__pic_taken:
+                    # TODO: Actual Take Pic algorithm
+                    self.signalSendMsg('TP|')
                 else:
+                    self.__pic_taken = False
                     if not self.__robot_just_turned_left:
-                        if self.__front_left_dict['L'] == 1 and self.__front_left_dict[
-                            'F'] == 0:  # if left is not free and front is free
-                            self.signalMoveRobotForward.emit()
-                            self.signalSense.emit()
-                        elif self.__front_left_dict['L'] == 1 and self.__front_left_dict[
-                            'F'] == 1:  # if left and front is not free
+                        if self.__front_left_dict['L'] == 1 and \
+                                self.__front_left_dict['F'] == 0:  # if left is not free and front is free
+                            self.signalSendMsg(pack_msg('1'))
+                        elif self.__front_left_dict['L'] == 1 and \
+                                self.__front_left_dict['F'] == 1:  # if left and front is not free
                             self.__no_of_left_rotation = self.__no_of_left_rotation - 1
-                            self.signalRotateRobotRight.emit()
-                            self.signalSense.emit()
+                            self.signalSendMsg(pack_msg('r'))
                         elif self.__front_left_dict['L'] == 0:  # if left is free, turn left to hug the left wall
                             self.__robot_just_turned_left = True
                             self.__no_of_left_rotation = self.__no_of_left_rotation + 1
-                            self.signalRotateRobotLeft.emit()
-                            self.signalSense.emit()
+                            self.signalSendMsg(pack_msg('l'))
                     else:
                         self.__robot_just_turned_left = False
-                        self.signalMoveRobotForward.emit()
-                        self.signalSense.emit()
+                        self.signalSendMsg(pack_msg('1'))
             elif self.__algo_status == ImgRecogAlgoStatus.FP_TO_OBSTACLE:
                 self.send_a_star_move_cmd()
             else:
                 # algo_status = seek_home or seek_goal
-                time.sleep(self.__time)
                 # at every move, check if there is an obstacle on the left.
                 # if yes, take pic
                 left_obstacle = self.is_left_obstacle(robot_bearing, all_corners, obstacle_map)
-                if left_obstacle:
-                    self.signalTakePic.emit()
-                    self.check_for_image(robot_bearing, all_corners, obstacle_map)
+                if left_obstacle and not self.__pic_taken:
+                    # TODO: Actual Take Pic algorithm
+                    self.signalSendMsg('TP|')
                 else:
+                    self.__pic_taken = False
                     if not self.__robot_just_turned_left:
                         if self.__front_left_dict['L'] == 1 and self.__front_left_dict['F'] == 0:
                             # if left is not free and front is free
-                            self.signalMoveRobotForward.emit()
-                            self.signalSense.emit()
+                            self.signalSendMsg(pack_msg('1'))
                         elif self.__front_left_dict['L'] == 1 and self.__front_left_dict['F'] == 1:
                             # if left and front is not free
-                            self.signalRotateRobotRight.emit()
-                            self.signalSense.emit()
+                            self.signalSendMsg(pack_msg('r'))
                         elif self.__front_left_dict['L'] == 0:
                             # if left is free, turn left to hug the left wall
                             self.__robot_just_turned_left = True
-                            self.signalRotateRobotLeft.emit()
-                            self.signalSense.emit()
+                            self.signalSendMsg(pack_msg('l'))
                     else:
                         self.__robot_just_turned_left = False
-                        self.signalMoveRobotForward.emit()
-                        self.signalSense.emit()
+                        self.signalSendMsg(pack_msg('1'))
         else:
             for row_item in self.__imgRecMap:
                 print(row_item)
@@ -654,47 +531,41 @@ class SimImgRecogAlgo(QObject):
                             print(f'img: {possible_img_pos[0][0]}, {max_col}, {possible_img_pos[0][3]}')
                     print()
             except Exception as err:
-                print(f'simImgRecogAlgo::determineMove() Error msg: {err}')
+                print(f'actlImgRecogAlgo::determineMove() Error msg: {err}')
 
             print('emitting finished')
             self.finished.emit()
-
-    @pyqtSlot()
-    def move_robot_after_taking_pic(self):
-        time.sleep(self.__time)
-        if self.__front_left_dict['L'] == 1 and self.__front_left_dict[
-            'F'] == 0:  # if left is not free and front is free
-            self.signalMoveRobotForward.emit()
-            self.signalSense.emit()
-        elif self.__front_left_dict['L'] == 1 and self.__front_left_dict['F'] == 1:  # if left and front is not free
-            self.__no_of_left_rotation = self.__no_of_left_rotation - 1
-            self.signalRotateRobotRight.emit()
-            self.signalSense.emit()
-        elif self.__front_left_dict['L'] == 0:  # if left is free, turn left to hug the left wall
-            self.__no_of_left_rotation = self.__no_of_left_rotation + 1
-            self.__robot_just_turned_left = True
-            self.signalRotateRobotLeft.emit()
-            self.signalSense.emit()
 
     def send_a_star_move_cmd(self):
         if self.__move_cmd is not None:
             self.__move_cmd_index = self.__move_cmd_index + 1
             if self.__move_cmd_index < len(self.__move_cmd):
-                time.sleep(self.__time)
                 if self.__move_cmd[self.__move_cmd_index] == 'RR':
-                    self.signalRotateRobotRight.emit()
+                    self.signalSendMsg(pack_msg('r'))
                 elif self.__move_cmd[self.__move_cmd_index] == 'RL':
-                    self.signalRotateRobotLeft.emit()
+                    self.signalSendMsg(pack_msg('l'))
                 else:
-                    self.signalMoveRobotForward.emit()
-                self.signalSense.emit()
+                    self.signalSendMsg(pack_msg('1'))
             else:
                 self.__move_cmd_index = -1
                 self.__move_cmd = None
                 self.__algo_status = ImgRecogAlgoStatus.LEFT_WALL_HUG
-                self.signalSense.emit()
         else:
             self.__move_cmd_index = -1
+
+    @pyqtSlot(str)
+    def save_prediction(self, result, bearing, all_corners, obstacle_map):
+        self.__pic_taken = True
+        if bearing == Bearing.NORTH:
+            coordinate = all_corners[2]
+        elif bearing == Bearing.EAST:
+            coordinate = all_corners[0]
+        elif bearing == Bearing.SOUTH:
+            coordinate = all_corners[1]
+        else:
+            coordinate = all_corners[3]
+        self.mark_img(bearing, coordinate, obstacle_map, result)
+        self.signalSendMsg(pack_msg('s'))
 
     @pyqtSlot()
     def run(self):
@@ -706,5 +577,6 @@ class SimImgRecogAlgo(QObject):
         self.__initial_pos = None
         self.__no_of_left_rotation = 0
         self.__img_id = set()
+        self.__pic_taken = False
         self.reset_map()
-        self.signalSense.emit()
+        self.signalSendMsg(pack_msg('s'))

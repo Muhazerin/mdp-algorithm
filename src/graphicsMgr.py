@@ -1,12 +1,14 @@
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread
 
 from squareTile import SquareTile
 from constants import TileType, MapConstant
 from robotObject import RobotObject
-
+import detect
 
 # Handles the graphics/drawing that user see on the app
 from robot import SimRobot
+
+import time
 
 
 class GraphicsMgr(QObject):
@@ -17,6 +19,7 @@ class GraphicsMgr(QObject):
     signalStartFP = pyqtSignal()
     signalStartImgRecog = pyqtSignal()
     signalStopFP = pyqtSignal()
+    signalDetectionResult = pyqtSignal(str, int, list, list)
     # signalNextMove = pyqtSignal()
 
     def __init__(self, scene, map):
@@ -38,6 +41,13 @@ class GraphicsMgr(QObject):
         # Add the robot to the scene
         self.__scene.addItem(self.__robot)
         # self.__robot.sense()
+
+        self.__forward = Forward()
+        self.__fThread = QThread()
+        self.__forward.moveToThread(self.__fThread)
+        self.__fThread.started.connect(self.__forward.run)
+        self.__forward.finished.connect(self.__fThread.quit)
+        self.__forward.signalForward.connect(lambda: self.__robot.moveRobotForward())
 
     def getRobot(self):
         return self.__robot
@@ -127,7 +137,7 @@ class GraphicsMgr(QObject):
         #   p               start fast path
         #   i               start img recog
         #   e               start expl
-        #   f               forward
+        #   num N           move forward N times
         #   l               rotate left
         #   r               rotate right
         #   x,y             FPW(len == 2)
@@ -143,15 +153,6 @@ class GraphicsMgr(QObject):
             elif msg == 't':
                 print('[Android-Algo] Start Expl\n')
                 self.signalStartExpl.emit()
-            elif msg == 'f':
-                print('[Arduino-Algo] Move robot forward\n')
-                self.__robot.moveRobotForward()
-                if self.__shortestPath is not None:
-                    self.__spIndex = self.__spIndex + 1
-                    if self.__spIndex == len(self.__shortestPath):
-                        self.__shortestPath = 0
-                        self.__spIndex = 0
-                        self.signalStopFP.emit()
             elif msg == 'l':
                 print('[Arduino-Algo] Rotate robot left\n')
                 self.__robot.rotateRobotLeft()
@@ -170,15 +171,30 @@ class GraphicsMgr(QObject):
                         self.__shortestPath = 0
                         self.__spIndex = 0
                         self.signalStopFP.emit()
+            elif msg == 'd':
+                print('[RPi - Algo] Photo Taken. Detecting image...\n')
+                result = detect.get_prediction()
+                self.signalDetectionResult.emit(result, self.__robot.bearing, self.__robot.get_all_corners(),
+                                                self.__map.obstacleMap)
             else:
                 data = msg.split(',')
-                if len(data) == 2:      # FPW
+                if len(data) == 2:      # FP Waypoint
                     print(f'[Android-Algo] FPW: {data}\n')
                     coordinate = [int(data[0]), int(data[1])]
                     self.__map.waypoint = coordinate
                 elif len(data) == 6:    # sensor data
                     print(f'[Arduino-Algo] Sensor data: {data}\n')
                     pass
+                elif len(data) == 1:
+                    self.__forward.set_n(int(data[0]))
+                    self.__fThread.start()
+
+                    if self.__shortestPath is not None:
+                        self.__spIndex += 1
+                        if self.__spIndex == len(self.__shortestPath):
+                            self.__shortestPath = 0
+                            self.__spIndex = 0
+                            self.signalStopFP.emit()
                 else:
                     print('invalid msg\n')
         except Exception as err:
@@ -192,3 +208,23 @@ class GraphicsMgr(QObject):
     def resetShortestPath(self):
         self.__shortestPath = None
         self.__spIndex = 0
+
+
+class Forward(QObject):
+    signalForward = pyqtSignal()
+    finished = pyqtSignal()
+
+    def __init__(self):
+        super(Forward, self).__init__()
+        self.__n = 0
+
+    def set_n(self, n):
+        self.__n = n
+
+    @pyqtSlot()
+    def run(self):
+        for i in range(self.__n):
+            print('[Arduino-Algo] Move robot forward')
+            self.signalForward.emit()
+            time.sleep(0.25)
+        self.finished.emit()
