@@ -62,7 +62,7 @@ def can_calibrate(robot_bearing, obstacle_map, all_corners):
 
 class ActlExplAlgo(QObject):
     finished = pyqtSignal()
-    signalSendMsg = pyqtSignal()
+    signalSendMsg = pyqtSignal(str)
 
     def __init__(self):
         super(ActlExplAlgo, self).__init__()
@@ -72,7 +72,6 @@ class ActlExplAlgo(QObject):
         self.__move_cmd = None
         self.__move_cmd_index = -1
         self.__initial_pos = None
-        self.__calibrate = False
         self.__coverage = 100
         self.__no_of_left_rotation = 0
 
@@ -82,11 +81,7 @@ class ActlExplAlgo(QObject):
         self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
 
     def send_msg(self, msg):
-        if self.__calibrate:
-            self.__calibrate = False
-            cmd = 'EC|c' + msg
-        else:
-            cmd = 'EC|' + msg
+        cmd = 'EC|' + msg
         self.signalSendMsg.emit(cmd)
 
     @pyqtSlot(dict, list, list, list, int)
@@ -214,11 +209,11 @@ class ActlExplAlgo(QObject):
 
     @pyqtSlot()
     def run(self):
+        print('Actual Exploration Started')
         self.__stop = False
         self.__algoStatus = AlgoStatus.SEEK_GOAL
         self.__initial_pos = None
         self.__move_cmd = None
         self.__move_cmd_index = -1
         self.__no_of_left_rotation = 0
-        self.__calibrate = False
         self.send_msg('s')

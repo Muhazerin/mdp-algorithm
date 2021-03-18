@@ -138,11 +138,7 @@ class SimRobot(Robot):
 
         return allCorners
 
-    # emits a signal with a dictionary
-    # { 'F' : <0,1>, 'L' : <0,1> } 0 -> No obstacle, 1 -> obstacle
-    def checkFrontLeft(self):
-        allCorners = self.get_all_corners()
-
+    def get_front_left_dict(self, allCorners):
         frontLeftDict = {'F': 0, 'L': 0}
         topLeftCorner = allCorners[0]
         topRightCorner = allCorners[1]
@@ -217,4 +213,12 @@ class SimRobot(Robot):
                     if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
                         frontLeftDict['L'] = 1
                         break
+        return frontLeftDict
+
+    # emits a signal with a dictionary
+    # { 'F' : <0,1>, 'L' : <0,1> } 0 -> No obstacle, 1 -> obstacle
+    def checkFrontLeft(self):
+        allCorners = self.get_all_corners()
+        frontLeftDict = self.get_front_left_dict(allCorners)
+
         self.__robotObject.emitFrontLeft(frontLeftDict, allCorners, self.__map.exploredMap, self.__map.obstacleMap, self.bearing)

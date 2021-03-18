@@ -37,6 +37,9 @@ class Ui_MainWindow(object):
         self.horizontalLayout.addWidget(self.gvMap)
         self.vlSideBtn = QtWidgets.QVBoxLayout()
         self.vlSideBtn.setObjectName("vlSideBtn")
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setObjectName("label")
+        self.vlSideBtn.addWidget(self.label)
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.vlSideBtn.addItem(spacerItem)
         self.vlSPS = QtWidgets.QVBoxLayout()
@@ -191,6 +194,10 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MDP Algorithm"))
+        self.label.setText(_translate("MainWindow", "Reminder: For Image Recognition, please REMEMBER to\n"
+"    1) TEST the detection before you start\n"
+"    2) DELETE images folder before you start\n"
+"    3) CLICK Prep For Maze again after calibration"))
         self.lblSPS.setText(_translate("MainWindow", "Steps Per Second:"))
         self.leSPS.setText(_translate("MainWindow", "-1"))
         self.leSPS.setPlaceholderText(_translate("MainWindow", "no of steps per seconds"))

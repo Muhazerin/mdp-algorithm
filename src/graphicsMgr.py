@@ -1,7 +1,10 @@
+import ssl
+
+import torch
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread
 
 from squareTile import SquareTile
-from constants import TileType, MapConstant
+from constants import TileType, MapConstant, Bearing
 from robotObject import RobotObject
 import detect
 
@@ -10,6 +13,12 @@ from robot import SimRobot
 
 import time
 
+MAX_RIGHT = 7
+RIGHT_WEIGHTAGE_REDUCTION = 14
+MAX_FRONT = 2
+FRONT_WEIGHTAGE_REDUCTION = 50
+MAX_LEFT = 3
+LEFT_WEIGHTAGE_REDUCTION = 33
 
 class GraphicsMgr(QObject):
     signalFrontLeft = pyqtSignal(dict, list, list, list, int)
@@ -19,8 +28,8 @@ class GraphicsMgr(QObject):
     signalStartFP = pyqtSignal()
     signalStartImgRecog = pyqtSignal()
     signalStopFP = pyqtSignal()
-    signalDetectionResult = pyqtSignal(str, int, list, list)
-    # signalNextMove = pyqtSignal()
+    signalDetectionResult = pyqtSignal(list, int, list, list)
+    signalNextMove = pyqtSignal(dict, list, list, list, int)
 
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
@@ -48,6 +57,11 @@ class GraphicsMgr(QObject):
         self.__fThread.started.connect(self.__forward.run)
         self.__forward.finished.connect(self.__fThread.quit)
         self.__forward.signalForward.connect(lambda: self.__robot.moveRobotForward())
+
+        ssl._create_default_https_context = ssl._create_unverified_context
+        # self.__img_no = 1
+
+        self.__model = torch.hub.load('ultralytics/yolov5', 'custom', path_or_model='best.pt')
 
     def getRobot(self):
         return self.__robot
@@ -136,7 +150,7 @@ class GraphicsMgr(QObject):
         # need communication protocol for
         #   p               start fast path
         #   i               start img recog
-        #   e               start expl
+        #   t               start expl
         #   num N           move forward N times
         #   l               rotate left
         #   r               rotate right
@@ -172,8 +186,9 @@ class GraphicsMgr(QObject):
                         self.__spIndex = 0
                         self.signalStopFP.emit()
             elif msg == 'd':
-                print('[RPi - Algo] Photo Taken. Detecting image...\n')
-                result = detect.get_prediction()
+                print('[RPi - Algo] Photo Taken. Algo detecting image...\n')
+                result = detect.get_prediction(self.__model)
+                print(f"[Algo] Image detected. Result: {result}")
                 self.signalDetectionResult.emit(result, self.__robot.bearing, self.__robot.get_all_corners(),
                                                 self.__map.obstacleMap)
             else:
@@ -184,7 +199,11 @@ class GraphicsMgr(QObject):
                     self.__map.waypoint = coordinate
                 elif len(data) == 6:    # sensor data
                     print(f'[Arduino-Algo] Sensor data: {data}\n')
-                    pass
+                    # I am limiting the sensor myself. front max = 3, left max = 2, right max = 5
+                    self.update_expl_map(data, self.__robot.get_all_corners(), self.__robot.bearing)
+                    self.signalNextMove.emit(self.__robot.get_front_left_dict(self.__robot.get_all_corners()),
+                                             self.__robot.get_all_corners(), self.__map.exploredMap,
+                                             self.__map.obstacleMap, self.__robot.bearing)
                 elif len(data) == 1:
                     self.__forward.set_n(int(data[0]))
                     self.__fThread.start()
@@ -199,6 +218,344 @@ class GraphicsMgr(QObject):
                     print('invalid msg\n')
         except Exception as err:
             print(f'graphicsMgr::interpretCmd Error msg: {err}\n')
+
+    def update_right_map(self, data, coordinate, robot_bearing):
+        weightage = 100
+        if robot_bearing == Bearing.NORTH:
+            if data == -1:
+                for i in range(MAX_RIGHT):
+                    if 0 <= coordinate[0] + i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] + i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] + data - 1 <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + data - 1]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
+        elif robot_bearing == Bearing.EAST:
+            if data == -1:
+                for i in range(MAX_RIGHT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - (data - 1) <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] - (data - 1)][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
+        elif robot_bearing == Bearing.SOUTH:
+            if data == -1:
+                for i in range(MAX_RIGHT):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] - (data - 1) <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - (data - 1)]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
+        else:
+            if data == -1:
+                for i in range(MAX_RIGHT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                    weightage -= RIGHT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + data - 1 <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] + data - 1][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
+
+    def update_front_map(self, data, coordinate, robot_bearing):
+        weightage = 100
+        if robot_bearing == Bearing.NORTH:
+            if data == -1:
+                for i in range(MAX_FRONT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                        self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                weightage -= FRONT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + data - 1 <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] + data - 1][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
+        elif robot_bearing == Bearing.EAST:
+            if data == -1:
+                for i in range(MAX_FRONT):
+                    if 0 <= coordinate[0] + i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                weightage -= FRONT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] + data - 1 <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + data - 1]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
+        elif robot_bearing == Bearing.SOUTH:
+            if data == -1:
+                for i in range(MAX_FRONT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - (data - 1) <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] - (data - 1)][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
+        else:
+            if data == -1:
+                for i in range(MAX_FRONT):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= FRONT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] - (data - 1) <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - (data - 1)]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
+
+    def update_left_map(self, data, coordinate, robot_bearing):
+        weightage = 100
+        if robot_bearing == Bearing.NORTH:
+            if data == -1:
+                for i in range(MAX_LEFT):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] - i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] - i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] - i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] - i, weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] - (data - 1) <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] - (data - 1)]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
+        elif robot_bearing == Bearing.EAST:
+            if data == -1:
+                for i in range(MAX_LEFT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] + i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] + i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] + i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] + i, coordinate[0], weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] + data - 1 <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] + data - 1][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
+        elif robot_bearing == Bearing.SOUTH:
+            if data == -1:
+                for i in range(MAX_LEFT):
+                    if 0 <= coordinate[0] + i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] + i <= 14 and 0 <= coordinate[1] <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + i]:
+                            self.__map.updateExploredMap(coordinate[1], coordinate[0] + i, 1)
+                            self.__map.updateObstacleMap(coordinate[1], coordinate[0] + i, 0)
+                            self.__map.updateWeightageMap(coordinate[1], coordinate[0] + i, weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] + data - 1 <= 14 and 0 <= coordinate[1] <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1]][coordinate[0] + data - 1]:
+                        self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
+                        self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
+        else:
+            if data == -1:
+                for i in range(MAX_LEFT):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+            else:
+                for i in range(data - 1):
+                    if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - i <= 19:
+                        if weightage >= self.__map.weightageMap[coordinate[1] - i][coordinate[0]]:
+                            self.__map.updateExploredMap(coordinate[1] - i, coordinate[0], 1)
+                            self.__map.updateObstacleMap(coordinate[1] - i, coordinate[0], 0)
+                            self.__map.updateWeightageMap(coordinate[1] - i, coordinate[0], weightage)
+                    weightage -= LEFT_WEIGHTAGE_REDUCTION
+                if 0 <= coordinate[0] <= 14 and 0 <= coordinate[1] - (data - 1) <= 19:
+                    if weightage >= self.__map.weightageMap[coordinate[1] - (data - 1)][coordinate[0]]:
+                        self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
+                        self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
+
+    def update_expl_map(self, sensor_data, all_corners, robot_bearing):
+        if robot_bearing == Bearing.NORTH:
+            right_coordinate = all_corners[1]
+            self.update_right_map(int(sensor_data[5]), right_coordinate, robot_bearing)
+
+            front_coordinate = all_corners[0]
+            self.update_front_map(int(sensor_data[2]), front_coordinate, robot_bearing)
+            front_coordinate[0] += 1
+            self.update_front_map(int(sensor_data[1]), front_coordinate, robot_bearing)
+            front_coordinate[0] += 1
+            self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
+
+            left_coordinate = all_corners[2]
+            left_coordinate[1] += 1
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            # bottom/middle left sensor is not placed correctly. this will create phantom block
+            # left_coordinate[1] += 1
+            # self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
+        elif robot_bearing == Bearing.EAST:
+            right_coordinate = all_corners[3]
+            self.update_right_map(int(sensor_data[5]), right_coordinate, robot_bearing)
+
+            front_coordinate = all_corners[1]
+            self.update_front_map(int(sensor_data[2]), front_coordinate, robot_bearing)
+            front_coordinate[1] -= 1
+            self.update_front_map(int(sensor_data[1]), front_coordinate, robot_bearing)
+            front_coordinate[1] -= 1
+            self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
+
+            left_coordinate = all_corners[0]
+            left_coordinate[0] += 1
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            left_coordinate[0] += 1
+            self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
+        elif robot_bearing == Bearing.SOUTH:
+            right_coordinate = all_corners[2]
+            self.update_right_map(int(sensor_data[5]), right_coordinate, robot_bearing)
+
+            front_coordinate = all_corners[3]
+            self.update_front_map(int(sensor_data[2]), front_coordinate, robot_bearing)
+            front_coordinate[0] -= 1
+            self.update_front_map(int(sensor_data[1]), front_coordinate, robot_bearing)
+            front_coordinate[0] -= 1
+            self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
+
+            left_coordinate = all_corners[1]
+            left_coordinate[1] -= 1
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            left_coordinate[1] -= 1
+            self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
+        else:
+            right_coordinate = all_corners[0]
+            self.update_right_map(int(sensor_data[5]), right_coordinate, robot_bearing)
+
+            front_coordinate = all_corners[2]
+            self.update_front_map(int(sensor_data[2]), front_coordinate, robot_bearing)
+            front_coordinate[1] += 1
+            self.update_front_map(int(sensor_data[1]), front_coordinate, robot_bearing)
+            front_coordinate[1] += 1
+            self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
+
+            left_coordinate = all_corners[3]
+            left_coordinate[0] -= 1
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            left_coordinate[0] -= 1
+            self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
 
     def setShortestPath(self, shortestPath):
         self.__shortestPath = shortestPath
@@ -226,5 +583,5 @@ class Forward(QObject):
         for i in range(self.__n):
             print('[Arduino-Algo] Move robot forward')
             self.signalForward.emit()
-            time.sleep(0.25)
+            time.sleep(0.25)    # 0.25
         self.finished.emit()

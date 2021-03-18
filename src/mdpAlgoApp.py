@@ -86,6 +86,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # Signal-Slot to start actual FP,Expl,ImgRecog
         self.__graphicsMgr.signalStartFP.connect(self.startActualFP)
+        self.__graphicsMgr.signalStartExpl.connect(self.startExpl)
+        self.__graphicsMgr.signalStartImgRecog.connect(self.startActlImgRecog)
 
         # MapDialog settings signal and slot
         self.btnLoadMap.clicked.connect(self.btnLoadMapClicked)
@@ -228,6 +230,12 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnResetMap.setEnabled(True)
         self.btnCalibrate.setEnabled(False)
         self.btnSendMdfForFp.setEnabled(False)
+        self.btnPrepForMaze.setEnabled(True)
+
+        if self.__actlExplThread.isRunning():
+            self.__actlExplAlgo.finished.emit()
+        if self.__actlImgRecogThread.isRunning():
+            self.__actlImgRecogAlgo.finished.emit()
 
     @pyqtSlot()
     def tcpClientConnected(self):
@@ -245,6 +253,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         self.btnCalibrate.setEnabled(True)
         self.btnSendMdfForFp.setEnabled(True)
+        self.btnPrepForMaze.setEnabled(True)
 
     @pyqtSlot()
     def btnRobotConnectionClicked(self):
@@ -431,16 +440,40 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__actlImgRecogAlgo.finished.connect(self.__actlImgRecogThread.quit)
         self.__actlImgRecogAlgo.finished.connect(lambda: print('Actual Image Recognition Stopped\n'))
         self.__actlImgRecogAlgo.finished.connect(self.enableMapSetting)
-        self.__actlImgRecogThread.finished.connect(self.__actlImgRecogAlgo.deleteLater())
+        self.__actlImgRecogThread.finished.connect(self.__actlImgRecogAlgo.deleteLater)
         # Signal-Slot for communication
         self.__actlImgRecogAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
         self.__graphicsMgr.signalDetectionResult.connect(self.__actlImgRecogAlgo.save_prediction)
+        self.__graphicsMgr.signalNextMove.connect(self.__actlImgRecogAlgo.determine_move)
+        # Signal-Slot for timer timeout
+        self.__qTimer.timeout.connect(self.__actlImgRecogAlgo.timer_timeout)
 
-        print('Actual Image Recognition Started')
+        # TODO: Test Timer
+        self.__qTimer.setInterval(340 * 1000)
+        self.__qTimer.start()
         self.__actlImgRecogThread.start()
 
+    @pyqtSlot()
     def startExpl(self):
+        self.btnLoadMap.setEnabled(False)
+        self.btnResetMap.setEnabled(False)
+        self.btnPrepForMaze.setEnabled(False)
+
         self.__actlExplAlgo = ActlExplAlgo()
         self.__actlExplAlgo.moveToThread(self.__actlExplThread)
         # Signal-Slot for thread management
         self.__actlExplThread.started.connect(self.__actlExplAlgo.run)
+        self.__actlExplAlgo.finished.connect(self.__actlExplThread.quit)
+        self.__actlExplAlgo.finished.connect(lambda: print("Actual Exploration Stopped"))
+        self.__actlExplAlgo.finished.connect(self.enableMapSetting)
+        self.__actlExplThread.finished.connect(self.__actlExplAlgo.deleteLater)
+        self.__actlExplAlgo.finished.connect(self.generateMapDescriptor)
+        # Signal-Slot for robot communication
+        self.__actlExplAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
+        self.__graphicsMgr.signalNextMove.connect(self.__actlExplAlgo.determineMove)
+        # Signal-Slot for timer timeout
+        self.__qTimer.timeout.connect(self.__actlExplAlgo.timer_timeout)
+        self.__qTimer.setInterval(330 * 1000)
+
+        self.__qTimer.start()
+        self.__actlExplThread.start()

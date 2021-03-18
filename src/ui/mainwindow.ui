@@ -52,6 +52,16 @@
     <item>
      <layout class="QVBoxLayout" name="vlSideBtn">
       <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Reminder: For Image Recognition, please REMEMBER to
+    1) TEST the detection before you start
+    2) DELETE images folder before you start
+    3) CLICK Prep For Maze again after calibration</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Vertical</enum>
