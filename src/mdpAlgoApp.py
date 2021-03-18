@@ -26,6 +26,7 @@ from tcpClient import TcpClient
 from actualExplAlgo import ActlExplAlgo
 from actualFastPathAlgo import ActlFastPathAlgo
 from actualImgRecogAlgo import ActlImgRecogAlgo
+from PIL import Image
 
 
 class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
@@ -138,6 +139,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__tcpClient.finished.connect(self.disableSendMsg)  # TODO: Remove after testing
         self.__tcpClient.connected.connect(self.enableSendMsg)  # TODO: Remove after testing
         self.__tcpClient.interpretCmd.connect(self.__graphicsMgr.interpretCmd)
+        # GraphicsMgr and TcpClient
+        self.__graphicsMgr.signalSendMsg.connect(self.__tcpClient.send_message)
 
         # Actual Fast Path Algo
         self.__actlFpThread = QThread()
@@ -440,11 +443,14 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__actlImgRecogAlgo.finished.connect(self.__actlImgRecogThread.quit)
         self.__actlImgRecogAlgo.finished.connect(lambda: print('Actual Image Recognition Stopped\n'))
         self.__actlImgRecogAlgo.finished.connect(self.enableMapSetting)
+        self.__actlImgRecogAlgo.finished.connect(self.open_image)
         self.__actlImgRecogThread.finished.connect(self.__actlImgRecogAlgo.deleteLater)
         # Signal-Slot for communication
         self.__actlImgRecogAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
         self.__graphicsMgr.signalDetectionResult.connect(self.__actlImgRecogAlgo.save_prediction)
         self.__graphicsMgr.signalNextMove.connect(self.__actlImgRecogAlgo.determine_move)
+        self.__actlImgRecogAlgo.signalAfterPhoto.connect(self.__graphicsMgr.after_photo)
+        self.__graphicsMgr.signalAfterPhotoData.connect(self.__actlImgRecogAlgo.determine_move)
         # Signal-Slot for timer timeout
         self.__qTimer.timeout.connect(self.__actlImgRecogAlgo.timer_timeout)
 
@@ -452,6 +458,12 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__qTimer.setInterval(340 * 1000)
         self.__qTimer.start()
         self.__actlImgRecogThread.start()
+
+    @pyqtSlot()
+    def open_image(self):
+        print('[MDP Algo App] Opening Image')
+        image = Image.open('all_img.jpg')
+        image.show()
 
     @pyqtSlot()
     def startExpl(self):

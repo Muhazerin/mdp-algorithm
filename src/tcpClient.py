@@ -50,11 +50,60 @@ class TcpClient(QObject):
     @pyqtSlot(str)
     def send_message(self, payload):
         try:
-            # Example message: 'FP|tr'
-            # self.__tcp_socket.write(QByteArray().append(json.dumps({'target': 'ARD', 'payload': 'hi'})))
+            # print(f'send_message::payload: {payload}\n')
+            # the payload may be part of 2 or more strings. because of thread. so need delete it
+            #
+            # get the first 3 char
+            # if ec|, get the next char
+            # if tp|, just send
+            # if ob|, get char until , once, then get char until not int
+            # if ip|, get char until , twice, then get char until not int
+
             print(f'sending msg: {payload}')
-            self.__tcp_socket.write(QByteArray().append(payload))
+            self.__tcp_socket.write(QByteArray().append(payload + '\n'))
             print('msg sent\n')
-            # self.__tcp_socket.flush()
+
+            # multi_string = False
+            # if payload[0:2] == 'EC':
+            #     if len(payload) != 4:
+            #         multi_string = True
+            # elif payload[0:2] == 'TP':
+            #     if len(payload) != 3:
+            #         multi_string = True
+            # elif payload[0:2] == 'IP':
+            #     if len(payload) != 11:
+            #         multi_string = True
+            # elif payload[0:2] == 'OB':
+            #     if len(payload) != 8:
+            #         multi_string = True
+            #
+            # if not multi_string:
+            #     print(f'sending msg: {payload}')
+            #     self.__tcp_socket.write(QByteArray().append(payload))
+            #     print('msg sent\n')
+            # else:
+            #     while payload:
+            #         print(f'while payload: {payload}')
+            #         if payload[0:2] == 'EC':
+            #             print(f'sending msg: {payload[0:4]}')
+            #             self.__tcp_socket.write(QByteArray().append(payload[0:4]))
+            #             print('msg sent\n')
+            #             payload = payload[4:len(payload)]
+            #         elif payload[0:2] == 'TP':
+            #             print(f'sending msg: {payload[0:3]}')
+            #             self.__tcp_socket.write(QByteArray().append(payload[0:3]))
+            #             print('msg sent\n')
+            #             payload = payload[3:len(payload)]
+            #         elif payload[0:2] == 'IP':
+            #             print(f'sending msg: {payload[0:11]}')
+            #             self.__tcp_socket.write(QByteArray().append(payload[0:11]))
+            #             print('msg sent\n')
+            #             payload = payload[8:len(payload)]
+            #         elif payload[0:2] == 'OB':
+            #             print(f'sending msg: {payload[0:8]}')
+            #             self.__tcp_socket.write(QByteArray().append(payload[0:8]))
+            #             print('msg sent\n')
+            #             payload = payload[6:len(payload)]
+            #         # self.__tcp_socket.flush()
         except Exception as err:
             print(f'tcpClient::send_message() error msg: {err}')

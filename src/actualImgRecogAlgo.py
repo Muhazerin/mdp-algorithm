@@ -21,66 +21,70 @@ def find_nearest_obstacle(list_of_coordinates, current_robot_center):
     return list_of_coordinates[min_index]
 
 
-# img was taken and result is positive
-def get_obstacle_coordinate(robot_bearing, all_corners, result):
+def can_calibrate(robot_bearing, obstacle_map, all_corners):
     if robot_bearing == Bearing.NORTH:
         coordinate = all_corners[2]
-        if result[1] == -1:
-            return coordinate
-        elif result[1] == 0:
-            return [coordinate[0], coordinate[1] + 1]
+        if coordinate[0] < 0:  # if the col is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1] + 2][coordinate[0]] == 1:
+            # if there are obstacle on top and bottom left
+            return True
         else:
-            return [coordinate[0], coordinate[1] + 2]
+            return False
     elif robot_bearing == Bearing.EAST:
         coordinate = all_corners[0]
-        if result[1] == -1:
-            return coordinate
-        elif result[1] == 0:
-            return [coordinate[0] + 1, coordinate[1]]
+        if coordinate[1] > 19:  # if the row is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1]][coordinate[0] + 2] == 1:
+            # if there are obstacle on top and bottom left
+            return True
         else:
-            return [coordinate[0] + 2, coordinate[1]]
+            return False
     elif robot_bearing == Bearing.SOUTH:
         coordinate = all_corners[1]
-        if result[1] == -1:
-            return coordinate
-        elif result[1] == 0:
-            return [coordinate[0], coordinate[1] - 1]
+        if coordinate[0] > 14:  # if the col is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1] - 2][coordinate[0]] == 1:
+            # if there are obstacle on top and bottom left
+            return True
         else:
-            return [coordinate[0], coordinate[1] - 1]
+            return False
     else:
         coordinate = all_corners[3]
-        if result[1] == -1:
-            return coordinate
-        elif result[1] == 0:
-            return [coordinate[0] - 1, coordinate[1]]
+        if coordinate[1] < 0:  # if the row is out of bound
+            return True
+        elif obstacle_map[coordinate[1]][coordinate[0]] == 1 and \
+                obstacle_map[coordinate[1]][coordinate[0] - 2] == 1:
+            # if there are obstacle on top and bottom left
+            return True
         else:
-            return [coordinate[0] - 2, coordinate[1]]
+            return False
 
 
 class ActlImgRecogAlgo(QObject):
     finished = pyqtSignal()
     signalSendMsg = pyqtSignal(str)
+    signalAfterPhoto = pyqtSignal()
 
     def __init__(self):
         super(ActlImgRecogAlgo, self).__init__()
         self.__stop = False
         self.__algo_status = ImgRecogAlgoStatus.SEEK_GOAL
-
         self.__robot_just_turned_left = False
         self.__robot_just_turned_left_and_move_forward = False
         self.__phantom_block_loop = False
-
         self.__front_left_dict = dict()
-
         self.__move_cmd = None
         self.__move_cmd_index = -1
         self.__initial_pos = None
-
         self.__no_of_left_rotation = 0
-
         self.__img_id = set()
+        self.__pic_taken = False
+        self.__complete_ir = False
         self.__timeout = False
-
         self.__obstacle_left_hug_map = [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -104,36 +108,39 @@ class ActlImgRecogAlgo(QObject):
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         ]
 
-        self.__pic_taken_location = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        # [imgId]
+        self.__imgRecMap = [
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
         ]
 
     @pyqtSlot()
     def timer_timeout(self):
         print('Actual Img Rec 5m40s passed')
         self.__timeout = True
+        self.process_image()
 
     def send_msg(self, msg):
         cmd = "EC|" + msg
+        print(f'send msg: {cmd}')
         self.signalSendMsg.emit(cmd)
 
     def reset_map(self):
@@ -160,27 +167,28 @@ class ActlImgRecogAlgo(QObject):
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         ]
 
-        self.__pic_taken_location = [
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        # Testing against arena 4
+        self.__imgRecMap = [
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+            [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
         ]
 
     # check the top, bottom, left, right of the r,c if the robot has left hug the obstacle
@@ -229,31 +237,84 @@ class ActlImgRecogAlgo(QObject):
                         list_of_coordinates = list_of_coordinates + temp
         return list_of_coordinates
 
-    def update_hug_left_obstacle(self, robot_bearing, all_corners, obstacle_map):
+    # Check if there is obstacle on left of robot
+    def is_left_obstacle(self, robot_bearing, all_corners, obstacle_map):
+        left_obstacle = False
         if robot_bearing == Bearing.NORTH:
             coordinate = all_corners[2]
-            if coordinate[0] >= 0:  # within arena
+            if coordinate[0] >= 0:
                 for row in range(coordinate[1], coordinate[1] + 3):
                     if obstacle_map[row][coordinate[0]] == 1:
+                        left_obstacle = True
                         self.__obstacle_left_hug_map[row][coordinate[0] + 1] = 1
         elif robot_bearing == Bearing.EAST:
             coordinate = all_corners[0]
-            if coordinate[1] <= 19:  # within arena
+            if coordinate[1] <= 19:
                 for col in range(coordinate[0], coordinate[0] + 3):
                     if obstacle_map[coordinate[1]][col] == 1:
+                        left_obstacle = True
                         self.__obstacle_left_hug_map[coordinate[1] - 1][col] = 1
         elif robot_bearing == Bearing.SOUTH:
             coordinate = all_corners[1]
-            if coordinate[0] <= 14:  # within arena
+            if coordinate[0] <= 14:
                 for row in range(coordinate[1], coordinate[1] - 3, -1):
                     if obstacle_map[row][coordinate[0]] == 1:
+                        left_obstacle = True
                         self.__obstacle_left_hug_map[row][coordinate[0] - 1] = 1
         else:
             coordinate = all_corners[3]
-            if coordinate[1] >= 0:  # within arena
+            if coordinate[1] >= 0:
                 for col in range(coordinate[0], coordinate[0] - 3, -1):
                     if obstacle_map[coordinate[1]][col] == 1:
+                        left_obstacle = True
                         self.__obstacle_left_hug_map[coordinate[1] + 1][col] = 1
+        return left_obstacle
+
+    def mark_img(self, robot_bearing, coordinate, result):
+        try:
+            if robot_bearing == Bearing.NORTH:
+                if result[1] == -1:
+                    self.__imgRecMap[coordinate[1]][coordinate[0]] = result[0]
+                    return [coordinate[1], coordinate[0]]
+                elif result[1] == 0:
+                    self.__imgRecMap[coordinate[1] + 1][coordinate[0]] = result[0]
+                    return [coordinate[1] + 1, coordinate[0]]
+                else:
+                    self.__imgRecMap[coordinate[1] + 2][coordinate[0]] = result[0]
+                    return [coordinate[1] + 2, coordinate[0]]
+            elif robot_bearing == Bearing.EAST:
+                if result[1] == -1:
+                    self.__imgRecMap[coordinate[1]][coordinate[0]] = result[0]
+                    return [coordinate[1], coordinate[0]]
+                elif result[1] == 0:
+                    self.__imgRecMap[coordinate[1]][coordinate[0] + 1] = result[0]
+                    return [coordinate[1], coordinate[0] + 1]
+                else:
+                    self.__imgRecMap[coordinate[1]][coordinate[0] + 1] = result[0]
+                    return [coordinate[1], coordinate[0] + 2]
+            elif robot_bearing == Bearing.SOUTH:
+                if result[1] == -1:
+                    self.__imgRecMap[coordinate[1]][coordinate[0]] = result[0]
+                    return [coordinate[1], coordinate[0]]
+                elif result[1] == 0:
+                    self.__imgRecMap[coordinate[1] - 1][coordinate[0]] = result[0]
+                    return [coordinate[1] - 1, coordinate[0]]
+                else:
+                    self.__imgRecMap[coordinate[1] - 2][coordinate[0]] = result[0]
+                    return [coordinate[1] - 2, coordinate[0]]
+            else:
+                if result[1] == -1:
+                    self.__imgRecMap[coordinate[1]][coordinate[0]] = result[0]
+                    return [coordinate[1], coordinate[0]]
+                elif result[1] == 0:
+                    self.__imgRecMap[coordinate[1]][coordinate[0] - 1] = result[0]
+                    return [coordinate[1], coordinate[0] - 1]
+                else:
+                    self.__imgRecMap[coordinate[1]][coordinate[0] - 2] = result[0]
+                    return [coordinate[1], coordinate[0] - 2]
+        except Exception as err:
+            print(f'actlImgRecogAlgo::mark_img() Error msg: {err}')
+            self.finished.emit()
 
     def process_image(self):
         folders = os.listdir('images')
@@ -285,7 +346,8 @@ class ActlImgRecogAlgo(QObject):
             elif len(im_list_resize) == 1:
                 all_img = im_list_resize[0]
 
-            cv2.imshow('all.jpg', all_img)
+            # cv2.imshow('all_img.jpg', all_img)
+            cv2.imwrite('all_img.jpg', all_img)
             # cv2.waitKey()
         else:
             print('No images found in disk')
@@ -293,153 +355,52 @@ class ActlImgRecogAlgo(QObject):
         print('emitting finished')
         self.finished.emit()
 
-    def pic_taken_on_top_left(self, robot_bearing, all_corners):
-        if robot_bearing == Bearing.NORTH:
-            coordinate = all_corners[2]
-            if coordinate[0] >= 0:  # within arena
-                if self.__pic_taken_location[coordinate[1] + 2][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        elif robot_bearing == Bearing.EAST:
-            coordinate = all_corners[0]
-            if coordinate[1] <= 19:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0] + 2] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        elif robot_bearing == Bearing.SOUTH:
-            coordinate = all_corners[1]
-            if coordinate[0] <= 14:  # within arena
-                if self.__pic_taken_location[coordinate[1] - 2][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        else:
-            coordinate = all_corners[3]
-            if coordinate[1] >= 0:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0] - 2] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-
-    def pic_taken_on_bottom_left(self, robot_bearing, all_corners):
-        if robot_bearing == Bearing.NORTH:
-            coordinate = all_corners[2]
-            if coordinate[0] >= 0:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        elif robot_bearing == Bearing.EAST:
-            coordinate = all_corners[0]
-            if coordinate[1] <= 19:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        elif robot_bearing == Bearing.SOUTH:
-            coordinate = all_corners[1]
-            if coordinate[0] <= 14:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-        else:
-            coordinate = all_corners[3]
-            if coordinate[1] >= 0:  # within arena
-                if self.__pic_taken_location[coordinate[1]][coordinate[0]] == 1:
-                    return True
-                else:
-                    return False
-            else:
-                return True
-
-    def update_pic_location(self, robot_bearing, all_corners, obstacle_map):
-        if robot_bearing == Bearing.NORTH:
-            coordinate = all_corners[2]
-            if coordinate[0] >= 0:  # within arena
-                for row in range(coordinate[1], coordinate[1] + 3):
-                    if obstacle_map[row][coordinate[0]] == 1:
-                        self.__pic_taken_location[row][coordinate[0]] = 1
-        elif robot_bearing == Bearing.EAST:
-            coordinate = all_corners[0]
-            if coordinate[1] <= 19:  # within arena
-                for col in range(coordinate[0], coordinate[0] + 3):
-                    if obstacle_map[coordinate[1]][col] == 1:
-                        self.__pic_taken_location[coordinate[1]][col] = 1
-        elif robot_bearing == Bearing.SOUTH:
-            coordinate = all_corners[1]
-            if coordinate[0] <= 14:  # within arena
-                for row in range(coordinate[1], coordinate[1] - 3, -1):
-                    if obstacle_map[row][coordinate[0]] == 1:
-                        self.__pic_taken_location[row][coordinate[0]] = 1
-        else:
-            coordinate = all_corners[3]
-            if coordinate[1] >= 0:  # within arena
-                for col in range(coordinate[0], coordinate[0] - 3, -1):
-                    if obstacle_map[coordinate[1]][col] == 1:
-                        self.__pic_taken_location[coordinate[1]][col] = 1
-
-    def normal_robot_movement(self, robot_bearing, all_corners, obstacle_map):
+    def normal_robot_movement(self):
         # normal robot movement algorithm
-        if not self.__phantom_block_loop:
-            if self.__front_left_dict['L'] == 1:    # left is not free
-                self.update_hug_left_obstacle(robot_bearing, all_corners, obstacle_map)
-                if self.__robot_just_turned_left_and_move_forward:
-                    self.__robot_just_turned_left_and_move_forward = False
-                if self.__front_left_dict['F'] == 1:    # front is not free
-                    if not self.pic_taken_on_top_left(robot_bearing, all_corners):
-                        self.update_pic_location(robot_bearing, all_corners, obstacle_map)
-                        self.send_msg('TP|')
-                    else:
-                        self.__no_of_left_rotation -= 1
-                        self.send_msg('r')
-                else:   # front is free
-                    if not self.pic_taken_on_bottom_left(robot_bearing, all_corners):
-                        self.update_pic_location(robot_bearing, all_corners, obstacle_map)
-                        self.send_msg('TP|')
-                    else:
-                        self.send_msg('1')
-            else:  # left is free
-                if self.__robot_just_turned_left_and_move_forward:
-                    self.__robot_just_turned_left_and_move_forward = False
-                    self.__phantom_block_loop = True
-                    self.__no_of_left_rotation += 1
-                    self.send_msg('l')
-                elif self.__robot_just_turned_left:
-                    self.__robot_just_turned_left = False
-                    self.__robot_just_turned_left_and_move_forward = True
-                    self.send_msg('1')
-                else:
-                    self.__robot_just_turned_left = True
-                    self.__no_of_left_rotation += 1
-                    self.send_msg('l')
-        else:
-            if self.__front_left_dict['F'] == 0:
-                self.send_msg('1')
+        print(self.__front_left_dict)
+        if self.__robot_just_turned_left_and_move_forward:
+            print('turn left, move forward')
+            self.__robot_just_turned_left_and_move_forward = False
+            if self.__front_left_dict['L'] == 0:  # Phantom Block Loop Detected
+                self.__phantom_block_loop = True
+                self.__no_of_left_rotation = self.__no_of_left_rotation + 1
+                self.send_msg('l')
             else:
-                self.__phantom_block_loop = False
-                self.__no_of_left_rotation -= 1
+                if self.__front_left_dict['F'] == 1:
+                    self.__no_of_left_rotation = self.__no_of_left_rotation - 1
+                    self.send_msg('r')
+                else:
+                    self.send_msg('1')
+        elif self.__phantom_block_loop:
+            print('phantom loop')
+            if self.__front_left_dict['F'] == 0:  # if front is free in phantom_block_loop
+                self.__no_of_left_rotation = self.__no_of_left_rotation - 1
+                self.send_msg('1')
+            else:  # if front is not empty
                 self.send_msg('r')
+                self.__phantom_block_loop = False
+        elif not self.__robot_just_turned_left:     # normal movement
+            print('normal movement')
+            if self.__front_left_dict['L'] == 1 and \
+                    self.__front_left_dict['F'] == 0:  # if left is not free and front is free
+                self.send_msg('1')
+            elif self.__front_left_dict['L'] == 1 and \
+                    self.__front_left_dict['F'] == 1:  # if left and front is not free
+                self.__no_of_left_rotation = self.__no_of_left_rotation - 1
+                self.send_msg('r')
+            elif self.__front_left_dict['L'] == 0:  # if left is free, turn left to hug the left wall
+                self.__robot_just_turned_left = True
+                self.__no_of_left_rotation = self.__no_of_left_rotation + 1
+                self.send_msg('l')
+        else:   # just turn left
+            print('just turn left')
+            self.__robot_just_turned_left = False
+            self.__robot_just_turned_left_and_move_forward = True
+            self.send_msg('1')
 
     @pyqtSlot(dict, list, list, list, int)
     def determine_move(self, front_left_dict, all_corners, explored_map, obstacle_map, robot_bearing):
-        print()
+        print('in determine_move')
         self.__front_left_dict = front_left_dict
         robot_center = all_corners[0][:]
         robot_center[0] = robot_center[0] + 1
@@ -473,7 +434,7 @@ class ActlImgRecogAlgo(QObject):
                         self.__algo_status = ImgRecogAlgoStatus.SEARCH_OBSTACLE
                     else:
                         self.__stop = True
-
+            print(f'stop: {self.__stop}')
             if not self.__stop:
                 if self.__algo_status == ImgRecogAlgoStatus.SEARCH_OBSTACLE:
                     list_of_coordinates = self.obstacle_without_left_hug(explored_map, obstacle_map)
@@ -481,6 +442,8 @@ class ActlImgRecogAlgo(QObject):
                     if list_of_coordinates:
                         # robot_pos in obstacle_coordinate is in x,y coordinate
                         obstacle_coordinate = find_nearest_obstacle(list_of_coordinates, robot_center)
+                        robot_center[0] += 1
+                        robot_center[1] += 1
                         dest_node = a_star_search(robot_center, obstacle_coordinate['robot_pos'],
                                                   obstacle_coordinate['bearing'], robot_bearing, explored_map, obstacle_map)
                         print(f'\n{obstacle_coordinate}\n')
@@ -495,17 +458,30 @@ class ActlImgRecogAlgo(QObject):
                     else:
                         self.__stop = True
                 elif self.__algo_status == ImgRecogAlgoStatus.LEFT_WALL_HUG:
-                    self.normal_robot_movement(robot_bearing, all_corners, obstacle_map)
+                    # Left_wall_hug obstacle after 1 whole round
+                    left_obstacle = self.is_left_obstacle(robot_bearing, all_corners, obstacle_map)
+                    # if got obstacle on left and havent take picture
+                    if left_obstacle and not self.__pic_taken:
+                        self.signalSendMsg.emit('TP|')
+                    else:
+                        self.__pic_taken = False
+                        self.normal_robot_movement()
                 elif self.__algo_status == ImgRecogAlgoStatus.FP_TO_OBSTACLE:
                     self.send_a_star_move_cmd()
                 else:
                     # algo_status = seek_home or seek_goal
-                    self.normal_robot_movement(robot_bearing, all_corners, obstacle_map)
+                    # at every move, check if there is an obstacle on the left.
+                    # if yes, take pic
+                    print('determine_move::normal algo_status')
+                    left_obstacle = self.is_left_obstacle(robot_bearing, all_corners, obstacle_map)
+                    if left_obstacle and not self.__pic_taken:
+                        self.signalSendMsg.emit('TP|')
+                    else:
+                        print('in determine_move::doing normal_robot_movement')
+                        self.__pic_taken = False
+                        self.normal_robot_movement()
             else:
                 self.process_image()
-        else:
-            # Timer time out
-            self.process_image()
 
     def send_a_star_move_cmd(self):
         if self.__move_cmd is not None:
@@ -518,22 +494,37 @@ class ActlImgRecogAlgo(QObject):
                 else:
                     self.send_msg('1')
             else:
+                print('FP to obstacle has ended')
                 self.__move_cmd_index = -1
                 self.__move_cmd = None
                 self.__algo_status = ImgRecogAlgoStatus.LEFT_WALL_HUG
+                self.signalAfterPhoto.emit()    # reusing code. need to go back to determine move
         else:
             self.__move_cmd_index = -1
 
-    @pyqtSlot(list, int, list, list)
-    def save_prediction(self, result, bearing, all_corners, obstacle_map):
-        if result:
-            if result[0] not in self.__img_id:
-                print("[Algo] Saving Prediction...")
-                self.__img_id.add(result[0])
-                marked_coordinate = get_obstacle_coordinate(bearing, all_corners, obstacle_map, result)
-                self.signalSendMsg.emit(f'IP|{result[0]},{marked_coordinate[0]},{marked_coordinate[1]}')
-                time.sleep(0.5)
-        self.signalSendMsg.emit('EC|s')
+    @pyqtSlot(list, int, list)
+    def save_prediction(self, result, bearing, all_corners):
+        try:
+            self.__pic_taken = True
+            if bearing == Bearing.NORTH:
+                coordinate = all_corners[2]
+            elif bearing == Bearing.EAST:
+                coordinate = all_corners[0]
+            elif bearing == Bearing.SOUTH:
+                coordinate = all_corners[1]
+            else:
+                coordinate = all_corners[3]
+            if result:
+                if result[0] not in self.__img_id:
+                    print("[Algo] Saving Prediction...")
+                    self.__img_id.add(result[0])
+                    marked_coordinate = self.mark_img(bearing, coordinate, result)
+                    self.signalSendMsg.emit(f'IP|{result[0]},{marked_coordinate[1]},{marked_coordinate[0]}')
+                    time.sleep(0.5)
+            self.signalAfterPhoto.emit()
+            # self.signalSendMsg.emit('EC|s')
+        except Exception as err:
+            print(f'save_prediction:: Error: {err}')
 
     @pyqtSlot()
     def run(self):
@@ -548,5 +539,7 @@ class ActlImgRecogAlgo(QObject):
         self.__initial_pos = None
         self.__no_of_left_rotation = 0
         self.__img_id = set()
+        self.__pic_taken = False
+        self.__complete_ir = False
         self.reset_map()
         self.signalSendMsg.emit('EC|s')

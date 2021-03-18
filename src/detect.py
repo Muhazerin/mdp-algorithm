@@ -76,51 +76,54 @@ def get_array_from_list(img_id):
 
 def get_prediction(model):
     prediction = []
+    try:
+        print('[Detection Algo] Detecting image')
+        image = cv2.imread(file_name)[:, :, ::-1]
+        results = model(image)
+        gn = torch.tensor(image.shape)[[1, 0, 1, 0]]
+        # results.show()
 
-    print('[Detection Algo] Detecting image')
-    image = cv2.imread(file_name)[:, :, ::-1]
-    results = model(image)
-    gn = torch.tensor(image.shape)[[1, 0, 1, 0]]
-    # results.show()
+        predict = get_result(results, gn)
+        print(f'Detection: {predict}')
+        if predict:
+            temp_predict = {}
+            for item in predict:
+                if predict[item][3] >= 0.18 and predict[item][4] >= 0.18:   # if the width and height >= 0.2
+                    # append to another dictionary
+                    temp_predict[item] = predict[item]
 
-    predict = get_result(results, gn)
-    print(f'Detection: {predict}')
-    if predict:
-        temp_predict = {}
-        for item in predict:
-            if predict[item][3] >= 0.2 and predict[item][4] >= 0.2:   # if the width and height >= 0.2
-                # append to another dictionary
-                temp_predict[item] = predict[item]
-
-        if temp_predict:
-            class_predict = max(temp_predict.items(), key=operator.itemgetter(1))[0]
-            class_items = max(temp_predict.items(), key=operator.itemgetter(1))[1]
-            print(f'Highest confidence: {class_predict}, {class_items[0]}, {class_items[1]}')
-            if 0.00 <= class_items[1] < 0.33:
-                # image on left
-                prediction = [SYMBOL_ID_MAP[class_predict], -1]
-            elif 0.33 <= class_items[1] < 0.66:
-                # image on middle
-                prediction = [SYMBOL_ID_MAP[class_predict], 0]
-            elif 0.66 <= class_items[1] <= 1.00:
-                # image of right
-                prediction = [SYMBOL_ID_MAP[class_predict], 1]
-            item = get_array_from_list(SYMBOL_ID_MAP[class_predict])
-            if item == [0, 0]:
-                item[0] = SYMBOL_ID_MAP[class_predict]
-                item[1] = class_items[0]
-                results.save(f'images/{SYMBOL_ID_MAP[class_predict]}')
-            else:
-                if item[1] < class_items[0]:
+            if temp_predict:
+                class_predict = max(temp_predict.items(), key=operator.itemgetter(1))[0]
+                class_items = max(temp_predict.items(), key=operator.itemgetter(1))[1]
+                print(f'Highest confidence: {class_predict}, {class_items[0]}, {class_items[1]}')
+                if 0.00 <= class_items[1] < 0.33:
+                    # image on left
+                    prediction = [SYMBOL_ID_MAP[class_predict], 1]
+                elif 0.33 <= class_items[1] < 0.66:
+                    # image on middle
+                    prediction = [SYMBOL_ID_MAP[class_predict], 0]
+                elif 0.66 <= class_items[1] <= 1.00:
+                    # image of right
+                    prediction = [SYMBOL_ID_MAP[class_predict], -1]
+                item = get_array_from_list(SYMBOL_ID_MAP[class_predict])
+                if item == [0, 0]:
+                    item[0] = SYMBOL_ID_MAP[class_predict]
                     item[1] = class_items[0]
                     results.save(f'images/{SYMBOL_ID_MAP[class_predict]}')
-        else:
-            print(f'[Detection] Image detected but they are far away')
+                else:
+                    if item[1] < class_items[0]:
+                        item[1] = class_items[0]
+                        results.save(f'images/{SYMBOL_ID_MAP[class_predict]}')
+            else:
+                print(f'[Detection] Image detected but they are far away')
 
-    print('[Algo - Detect] Removing the photo from shared folder')
-    os.remove(file_name)       # Delete the file as I faced the error of getting the same photo at next take photo
+        print('[Algo - Detect] Removing the photo from shared folder')
+        os.remove(file_name)       # Delete the file as I faced the error of getting the same photo at next take photo
 
-    return prediction
+        return prediction
+    except Exception as err:
+        print('[Detect] Error')
+        return []
 
 
 if __name__ == '__main__':
