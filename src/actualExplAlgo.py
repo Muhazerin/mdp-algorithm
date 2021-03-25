@@ -2,6 +2,7 @@
 # TODO: Hardcode the timer to 330 seconds (5 mins 30 secs)
 #   After timer timeout, FP back to home
 import math
+import time
 from collections import Counter
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
@@ -40,6 +41,7 @@ class ActlExplAlgo(QObject):
     def timer_timeout(self):
         print('Actual Exploration 5m30s passed. FP to Home')
         self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
+        time.sleep(1)
         self.signalDetermineMove.emit()
 
     def send_msg(self, msg):
