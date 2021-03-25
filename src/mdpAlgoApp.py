@@ -10,7 +10,7 @@
 #   tcpClient pass msg to and from robot and realAlgo
 #   realAlgo tells robotClass to update map. realRobotClass returns the updated map to realAlgo
 #   realAlgo sends cmd to tcpClient to move the robot
-
+import time
 
 from PyQt5.QtCore import pyqtSlot, QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QGraphicsScene, QMessageBox
@@ -50,25 +50,6 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
             [12, 19], [13, 19], [14, 19],
         ]
 
-        self.__binToHexConverterDict = {
-            '0000': '0',
-            '0001': '1',
-            '0010': '2',
-            '0011': '3',
-            '0100': '4',
-            '0101': '5',
-            '0110': '6',
-            '0111': '7',
-            '1000': '8',
-            '1001': '9',
-            '1010': 'A',
-            '1011': 'B',
-            '1100': 'C',
-            '1101': 'D',
-            '1110': 'E',
-            '1111': 'F'
-        }
-
         # Disable app from maximising
         self.setMaximumSize(self.width(), self.height())
 
@@ -84,6 +65,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
         # Let the graphicMgr handle designing the scene and robot
         self.__graphicsMgr = GraphicsMgr(self.__scene, self.__map)
+
+        self.__graphicsMgr.signalSendMdf.connect(self.sendMdfString)
 
         # Signal-Slot to start actual FP,Expl,ImgRecog
         self.__graphicsMgr.signalStartFP.connect(self.startActualFP)
@@ -394,17 +377,6 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         except Exception as err:
             print(f"[Error] mdpAlgoApp::btnSetWaypointClicked! Error msg: {err}")
 
-    def mapToHex(self, pStr):
-        pHex = ''
-        tempPstr = ''
-        for index in range(0, len(pStr)):
-            tempPstr += pStr[index]
-            if index % 4 == 3:
-                pHex += self.__binToHexConverterDict[tempPstr]
-                tempPstr = ''
-        return pHex
-
-
     @pyqtSlot()
     def generateMapDescriptor(self):
         p1 = '11'
@@ -424,8 +396,8 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
             padding = 8 - extra
         for i in range(0, padding):
             p2 += '0'
-        p1 = self.mapToHex(p1)
-        p2 = self.mapToHex(p2)
+        p1 = hex(int(p1, 2)).lstrip('0x').upper()
+        p2 = '{0:0{1}X}'.format(int(p2, 2), int(len(p2) / 4))
         print('\nMap Descriptor')
         print(f'p1: {p1}')
         print(f'p2: {p2}')
@@ -466,6 +438,35 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         image.show()
 
     @pyqtSlot()
+    def sendMdfString(self):
+        p1 = '11'
+        p2 = ''
+        for row in range(0, len(self.__map.exploredMap)):
+            for col in range(0, len(self.__map.exploredMap[row])):
+                if self.__map.exploredMap[row][col] == 0:
+                    p1 += '0'
+                else:
+                    # if the map is explored, add the cell property into p2
+                    p1 += '1'
+                    p2 += str(self.__map.obstacleMap[row][col])
+        p1 += '11'
+        extra = len(p2) % 8
+        padding = 0
+        if extra != 0:
+            padding = 8 - extra
+        for i in range(0, padding):
+            p2 += '0'
+        p1 = hex(int(p1, 2)).lstrip('0x').upper()
+        p2 = '{0:0{1}X}'.format(int(p2, 2), int(len(p2) / 4))
+        print('\nMap Descriptor')
+        print(f'p1: {p1}')
+        print(f'p2: {p2}')
+
+        msg = f"MDF|{p1},{p2}"
+        self.signalSendMsg.emit(msg)
+        time.sleep(0.1)
+
+    @pyqtSlot()
     def startExpl(self):
         self.btnLoadMap.setEnabled(False)
         self.btnResetMap.setEnabled(False)
@@ -483,6 +484,11 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         # Signal-Slot for robot communication
         self.__actlExplAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
         self.__graphicsMgr.signalNextMove.connect(self.__actlExplAlgo.determineMove)
+
+        # reusing code. need to go back to determine move
+        self.__actlExplAlgo.signalDetermineMove.connect(self.__graphicsMgr.after_photo)
+        self.__graphicsMgr.signalAfterPhotoData.connect(self.__actlExplAlgo.determineMove)
+
         # Signal-Slot for timer timeout
         self.__qTimer.timeout.connect(self.__actlExplAlgo.timer_timeout)
         self.__qTimer.setInterval(330 * 1000)

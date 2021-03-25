@@ -349,11 +349,22 @@ class ActlImgRecogAlgo(QObject):
             # cv2.imshow('all_img.jpg', all_img)
             cv2.imwrite('all_img.jpg', all_img)
             # cv2.waitKey()
+            self.send_ip_again()
         else:
             print('No images found in disk')
 
         print('emitting finished')
         self.finished.emit()
+
+    def send_ip_again(self):
+        try:
+            for row in range(len(self.__imgRecMap)):
+                for col in range(len(self.__imgRecMap[row])):
+                    if self.__imgRecMap[row][col] != -1:
+                        self.signalSendMsg.emit(f'IP|{self.__imgRecMap[row][col]},{col},{row}')
+        except Exception as err:
+            print('Unable to send ip again')
+            print(f'send_ip_again() Error: {err}')
 
     def normal_robot_movement(self):
         # normal robot movement algorithm

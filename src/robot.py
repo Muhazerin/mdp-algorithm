@@ -139,7 +139,7 @@ class SimRobot(Robot):
         return allCorners
 
     def get_front_left_dict(self, allCorners):
-        frontLeftDict = {'F': 0, 'L': 0}
+        frontLeftDict = {'F': 0, 'L': 0, 'R': 0}
         topLeftCorner = allCorners[0]
         topRightCorner = allCorners[1]
         bottomLeftCorner = allCorners[2]
@@ -162,6 +162,14 @@ class SimRobot(Robot):
                     if self.__map.obstacleMap[row][bottomLeftCorner[0]] == 1:
                         frontLeftDict['L'] = 1
                         break
+            # Check the right
+            if topRightCorner[0] > 14:  # out of arena range
+                frontLeftDict['R'] = 1
+            else:
+                for row in range(topRightCorner[1], topRightCorner[1] - 3, -1):
+                    if self.__map.obstacleMap[row][topRightCorner[0]] == 1:
+                        frontLeftDict['R'] = 1
+                        break
         elif self.bearing == Bearing.EAST:
             # Check the front
             if topRightCorner[0] > 14:  # out of arena range
@@ -178,6 +186,14 @@ class SimRobot(Robot):
                 for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
                     if self.__map.obstacleMap[topLeftCorner[1]][col] == 1:
                         frontLeftDict['L'] = 1
+                        break
+            # Check the right
+            if bottomRightCorner[1] < 0:    # out of arena range
+                frontLeftDict['R'] = 1
+            else:
+                for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
+                    if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
+                        frontLeftDict['R'] = 1
                         break
         elif self.bearing == Bearing.SOUTH:
             # Check the front
@@ -196,6 +212,14 @@ class SimRobot(Robot):
                     if self.__map.obstacleMap[row][topRightCorner[0]] == 1:
                         frontLeftDict['L'] = 1
                         break
+            # Check the right
+            if bottomLeftCorner[0] < 0:  # out of arena range
+                frontLeftDict['R'] = 1
+            else:
+                for row in range(bottomLeftCorner[1], bottomLeftCorner[1] + 3):
+                    if self.__map.obstacleMap[row][bottomLeftCorner[0]] == 1:
+                        frontLeftDict['R'] = 1
+                        break
         elif self.bearing == Bearing.WEST:
             # Check the front
             if bottomLeftCorner[0] < 0:  # out of arena range
@@ -212,6 +236,14 @@ class SimRobot(Robot):
                 for col in range(bottomRightCorner[0], bottomRightCorner[0] - 3, -1):
                     if self.__map.obstacleMap[bottomRightCorner[1]][col] == 1:
                         frontLeftDict['L'] = 1
+                        break
+            # Check the right
+            if topLeftCorner[1] > 19:
+                frontLeftDict['R'] = 1
+            else:
+                for col in range(topLeftCorner[0], topLeftCorner[0] + 3):
+                    if self.__map.obstacleMap[topLeftCorner[1]][col] == 1:
+                        frontLeftDict['R'] = 1
                         break
         return frontLeftDict
 

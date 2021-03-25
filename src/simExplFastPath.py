@@ -144,7 +144,7 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd = ['RL', 'F']
                 g = TURN_COST + MOVE_COST
             elif q.robot_bearing == Bearing.SOUTH:
-                move_cmd = ['RL', 'RL', 'F']
+                move_cmd = ['U', 'F']
                 g = TURN_COST + TURN_COST + MOVE_COST
             else:
                 move_cmd = ['RR', 'F']
@@ -158,8 +158,8 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd.append('RL')
                 current_bearing = Bearing.WEST
             elif top_robot_center == goal and facing == Bearing.SOUTH:
-                move_cmd.append('RL')
-                move_cmd.append('RL')
+                move_cmd.append('U')
+                # move_cmd.append('RL')
                 current_bearing = Bearing.SOUTH
 
             top_node = Node(top_robot_center, current_bearing, parent=q, g=g,
@@ -198,7 +198,7 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 is_robot_clash_obstacle(bottom_robot_center[0], bottom_robot_center[1], 'bottom', explored_map,
                                         obstacle_map):
             if q.robot_bearing == Bearing.NORTH:
-                move_cmd = ['RL', 'RL', 'F']
+                move_cmd = ['U', 'F']
                 g = TURN_COST + TURN_COST + MOVE_COST
             elif q.robot_bearing == Bearing.EAST:
                 move_cmd = ['RR', 'F']
@@ -218,8 +218,8 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd.append('RR')
                 current_bearing = Bearing.WEST
             elif bottom_robot_center == goal and facing == Bearing.NORTH:
-                move_cmd.append('RL')
-                move_cmd.append('RL')
+                move_cmd.append('U')
+                # move_cmd.append('RL')
                 current_bearing = Bearing.NORTH
 
             bottom_node = Node(bottom_robot_center, current_bearing, parent=q, g=g,
@@ -261,7 +261,7 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd = ['RL', 'F']
                 g = TURN_COST + MOVE_COST
             elif q.robot_bearing == Bearing.EAST:
-                move_cmd = ['RL', 'RL', 'F']
+                move_cmd = ['U', 'F']
                 g = TURN_COST + TURN_COST + MOVE_COST
             elif q.robot_bearing == Bearing.SOUTH:
                 move_cmd = ['RR', 'F']
@@ -278,8 +278,8 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd.append('RL')
                 current_bearing = Bearing.SOUTH
             elif left_robot_center == goal and facing == Bearing.EAST:
-                move_cmd.append('RL')
-                move_cmd.append('RL')
+                move_cmd.append('U')
+                # move_cmd.append('RL')
                 current_bearing = Bearing.EAST
 
             left_node = Node(left_robot_center, current_bearing, parent=q, g=g,
@@ -327,7 +327,7 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd = ['RL', 'F']
                 g = TURN_COST + MOVE_COST
             else:
-                move_cmd = ['RL', 'RL', 'F']
+                move_cmd = ['U', 'F']
                 g = TURN_COST + TURN_COST + MOVE_COST
 
             current_bearing = Bearing.EAST
@@ -338,8 +338,8 @@ def a_star_search(starting_robot_center, goal, facing, starting_robot_bearing, e
                 move_cmd.append('RR')
                 current_bearing = Bearing.SOUTH
             elif right_robot_center == goal and facing == Bearing.WEST:
-                move_cmd.append('RL')
-                move_cmd.append('RL')
+                move_cmd.append('U')
+                # move_cmd.append('RL')
                 current_bearing = Bearing.WEST
 
             right_node = Node(right_robot_center, current_bearing, parent=q, g=g,
@@ -399,26 +399,29 @@ def find_nearest_unexplored_grid(list_of_coordinates, current_robot_center):
     return list_of_coordinates[min_index]
 
 
+# what this code is trying to do is that it is trying to
+# search for the nearest obstacle from the unexplored grid in an expanding manner
+# so from the unexplored, check the block surrounding it (1 block away from unexplored), if no obstacle
+# expand (2 blocks away from the unexplored) and check the surrounding
+# i use lower and upper bound to achieve this
 def find_nearest_obstacle(unexplored_grid_coordinate, obstacle_map):
     found = False
     lower_bound = 0
     upper_bound = 1
     distance = 0
     while not found:
-        lower_bound = lower_bound - 1
-        upper_bound = upper_bound + 1
+        lower_bound = lower_bound - 1   # define the lower bound from the unexplored
+        upper_bound = upper_bound + 1   # define the upper bound from the unexplored
         distance = distance + 1
-        if distance > 20:   # it should not reach here
+        if distance > 20:   # it should not reach here as the max arena size is 20
             return None
+        # the lower and upper bound get bigger until it finds the nearest obstacle or distance > 20
         for row in range(unexplored_grid_coordinate[0] + lower_bound, unexplored_grid_coordinate[0] + upper_bound):
             if 0 <= row <= 19:
                 for col in range(unexplored_grid_coordinate[1] + lower_bound, unexplored_grid_coordinate[1] + upper_bound):
                     if 0 <= col <= 14:
                         if obstacle_map[row][col] == 1:
                             return [row, col]
-
-
-
 
 
 def get_surrounding_obstacle(obstacle_coordinate, explored_map, obstacle_map):
@@ -532,10 +535,19 @@ def find_nearest_goal(list_of_coordinates, current_robot_center):
     return list_of_coordinates[min_index]
 
 
+# the general algo is this
+# 1) Get all the unexplored grid
+# 2) Get the nearest unexplored grid from the list of unexplored grid
+# 3) Get the nearest obstacle from that nearest unexplored grid
+# 4) Get the valid surrounding (3x3 that is free) of that unexplored grid
+# 5) Get the nearest goal from that surrounding grid
 def get_nearest_goal(explored_map, obstacle_map, current_robot_center):
     list_of_unexplored_grid = get_all_unexplored_grid(explored_map)
     nearest_unexplored_grid = find_nearest_unexplored_grid(list_of_unexplored_grid, current_robot_center)
     nearest_obstacle = find_nearest_obstacle(nearest_unexplored_grid, obstacle_map)
-    surrounding_obstacle_grid = get_surrounding_obstacle(nearest_obstacle, explored_map, obstacle_map)
-    nearest_goal = find_nearest_goal(surrounding_obstacle_grid, current_robot_center)
-    return nearest_goal
+    if nearest_obstacle is not None:
+        surrounding_obstacle_grid = get_surrounding_obstacle(nearest_obstacle, explored_map, obstacle_map)
+        nearest_goal = find_nearest_goal(surrounding_obstacle_grid, current_robot_center)
+        return nearest_goal
+    else:
+        return None

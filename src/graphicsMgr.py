@@ -20,7 +20,7 @@ MAX_FRONT = 2
 FRONT_WEIGHTAGE_REDUCTION = 50
 MAX_LEFT = 3
 LEFT_WEIGHTAGE_REDUCTION = 33
-SLEEP_TIME = 0.05
+SLEEP_TIME = 0.5
 
 
 class GraphicsMgr(QObject):
@@ -35,6 +35,7 @@ class GraphicsMgr(QObject):
     signalNextMove = pyqtSignal(dict, list, list, list, int)
     signalSendMsg = pyqtSignal(str)
     signalAfterPhotoData = pyqtSignal(dict, list, list, list, int)
+    signalSendMdf = pyqtSignal()
 
     def __init__(self, scene, map):
         super(GraphicsMgr, self).__init__()
@@ -63,10 +64,9 @@ class GraphicsMgr(QObject):
         self.__forward.finished.connect(self.__fThread.quit)
         self.__forward.signalForward.connect(lambda: self.__robot.moveRobotForward())
 
-        ssl._create_default_https_context = ssl._create_unverified_context
-        # self.__img_no = 1
-
-        self.__model = torch.hub.load('ultralytics/yolov5', 'custom', path_or_model='best.pt')
+        # uncomment this code for img rec
+        # ssl._create_default_https_context = ssl._create_unverified_context
+        # self.__model = torch.hub.load('ultralytics/yolov5', 'custom', path_or_model='best.pt')
 
     def getRobot(self):
         return self.__robot
@@ -197,11 +197,28 @@ class GraphicsMgr(QObject):
                         self.__shortestPath = 0
                         self.__spIndex = 0
                         self.signalStopFP.emit()
+            elif msg == 'u':
+                print('[Arduino-Algo] U-turn')
+                self.__robot.rotateRobotLeft()
+                self.__robot.rotateRobotLeft()
+                if self.__shortestPath is not None:
+                    self.__spIndex = self.__spIndex + 1
+                    if self.__spIndex == len(self.__shortestPath):
+                        self.__shortestPath = 0
+                        self.__spIndex = 0
+                        self.signalStopFP.emit()
             elif msg == 'd':
                 print('[RPi - Algo] Photo Taken. Algo detecting image...\n')
                 result = detect.get_prediction(self.__model)
                 print(f"[Algo] Image detected. Result: {result}")
                 self.signalDetectionResult.emit(result, self.__robot.bearing, self.__robot.get_all_corners())
+            elif msg == 'z':
+                print('[RPi - Algo] MDF String sent... Signalling Next Move')
+                # i should receive after sending mdf string
+                # do it this way s sending mdf is long. might get error if 2 threads is trying to send at the same time
+                self.signalNextMove.emit(self.__robot.get_front_left_dict(self.__robot.get_all_corners()),
+                                         self.__robot.get_all_corners(), self.__map.exploredMap,
+                                         self.__map.obstacleMap, self.__robot.bearing)
             else:
                 data = msg.split(',')
                 if len(data) == 2:      # FP Waypoint
@@ -210,10 +227,14 @@ class GraphicsMgr(QObject):
                     self.__map.waypoint = coordinate
                 elif len(data) == 6:    # sensor data
                     print(f'[Arduino-Algo] Sensor data: {data}\n')
-                    # I am limiting the sensor myself. front max = 3, left max = 2, right max = 5
+                    print('update_expl_map')
                     self.update_expl_map(data, self.__robot.get_all_corners(), self.__robot.bearing)
-                    self.signalNextMove.emit(self.__robot.get_front_left_dict(self.__robot.get_all_corners()),
-                                             self.__robot.get_all_corners(), self.__map.exploredMap,
+                    print('send mdf string')
+                    self.signalSendMdf.emit()
+                    print('signal next move')
+                    all_corners = self.__robot.get_all_corners()
+                    self.signalNextMove.emit(self.__robot.get_front_left_dict(all_corners),
+                                             all_corners, self.__map.exploredMap,
                                              self.__map.obstacleMap, self.__robot.bearing)
                 elif len(data) == 1:
                     self.__forward.set_n(int(data[0]))
@@ -254,8 +275,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.EAST:
             if data == -1:
                 for i in range(MAX_RIGHT):
@@ -278,8 +299,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.SOUTH:
             if data == -1:
                 for i in range(MAX_RIGHT):
@@ -302,8 +323,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
         else:
             if data == -1:
                 for i in range(MAX_RIGHT):
@@ -326,8 +347,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
+                        # time.sleep(SLEEP_TIME)
 
     def update_front_map(self, data, coordinate, robot_bearing):
         weightage = 100
@@ -352,8 +373,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.EAST:
             if data == -1:
                 for i in range(MAX_FRONT):
@@ -375,8 +396,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.SOUTH:
             if data == -1:
                 for i in range(MAX_FRONT):
@@ -399,8 +420,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
+                        # time.sleep(SLEEP_TIME)
         else:
             if data == -1:
                 for i in range(MAX_FRONT):
@@ -423,8 +444,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
 
     def update_left_map(self, data, coordinate, robot_bearing):
         weightage = 100
@@ -450,8 +471,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] - (data - 1), 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] - (data - 1), weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] - (data - 1)},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.EAST:
             if data == -1:
                 for i in range(MAX_LEFT):
@@ -474,8 +495,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] + data - 1, coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] + data - 1, coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] + data - 1}')
+                        # time.sleep(SLEEP_TIME)
         elif robot_bearing == Bearing.SOUTH:
             if data == -1:
                 for i in range(MAX_LEFT):
@@ -498,8 +519,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateObstacleMap(coordinate[1], coordinate[0] + data - 1, 1)
                         self.__map.updateWeightageMap(coordinate[1], coordinate[0] + data - 1, weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0] + data - 1},{coordinate[1]}')
+                        # time.sleep(SLEEP_TIME)
         else:
             if data == -1:
                 for i in range(MAX_LEFT):
@@ -522,8 +543,8 @@ class GraphicsMgr(QObject):
                         self.__map.updateExploredMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateObstacleMap(coordinate[1] - (data - 1), coordinate[0], 1)
                         self.__map.updateWeightageMap(coordinate[1] - (data - 1), coordinate[0], weightage)
-                        self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
-                        time.sleep(SLEEP_TIME)
+                        # self.signalSendMsg.emit(f'OB|{coordinate[0]},{coordinate[1] - (data - 1)}')
+                        # time.sleep(SLEEP_TIME)
 
     def update_expl_map(self, sensor_data, all_corners, robot_bearing):
         if robot_bearing == Bearing.NORTH:
@@ -538,9 +559,9 @@ class GraphicsMgr(QObject):
             self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
 
             left_coordinate = all_corners[2]
-            left_coordinate[1] += 1
             # bottom/middle left sensor is not placed correctly. this will create phantom block
-            # self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
+            left_coordinate[1] += 1
             left_coordinate[1] += 1
             self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
         elif robot_bearing == Bearing.EAST:
@@ -555,8 +576,8 @@ class GraphicsMgr(QObject):
             self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
 
             left_coordinate = all_corners[0]
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[0] += 1
-            # self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[0] += 1
             self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
         elif robot_bearing == Bearing.SOUTH:
@@ -571,8 +592,8 @@ class GraphicsMgr(QObject):
             self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
 
             left_coordinate = all_corners[1]
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[1] -= 1
-            # self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[1] -= 1
             self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
         else:
@@ -587,8 +608,8 @@ class GraphicsMgr(QObject):
             self.update_front_map(int(sensor_data[0]), front_coordinate, robot_bearing)
 
             left_coordinate = all_corners[3]
+            self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[0] -= 1
-            # self.update_left_map(int(sensor_data[4]), left_coordinate, robot_bearing)
             left_coordinate[0] -= 1
             self.update_left_map(int(sensor_data[3]), left_coordinate, robot_bearing)
 
