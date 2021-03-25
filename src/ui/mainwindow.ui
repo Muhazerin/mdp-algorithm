@@ -75,6 +75,31 @@
        </spacer>
       </item>
       <item>
+       <layout class="QHBoxLayout" name="hlExpl">
+        <item>
+         <widget class="QLabel" name="lblExpl">
+          <property name="text">
+           <string>Exploration Type</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="cbExpl">
+          <item>
+           <property name="text">
+            <string>Full Exploration</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Left Wall Hug</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
        <layout class="QVBoxLayout" name="vlSPS">
         <item>
          <widget class="QLabel" name="lblSPS">

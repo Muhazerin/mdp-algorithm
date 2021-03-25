@@ -26,6 +26,7 @@ from tcpClient import TcpClient
 from actualExplAlgo import ActlExplAlgo
 from actualFastPathAlgo import ActlFastPathAlgo
 from actualImgRecogAlgo import ActlImgRecogAlgo
+from actualExplAlgoLWH import ActlExplAlgoLWH
 from PIL import Image
 
 
@@ -139,6 +140,9 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.__actlExplThread = QThread()
         self.__actlExplAlgo = ActlExplAlgo()
 
+        # LWH Exploration Algo
+        self.__actlExplAlgoLWH = ActlExplAlgoLWH()
+
         # TODO: Remove this after testing
         self.leMsg.setEnabled(False)
         self.btnMsg.setEnabled(False)
@@ -209,6 +213,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnPrepForMaze.setEnabled(True)
         self.btnLoadMap.setEnabled(True)
         self.btnResetMap.setEnabled(True)
+        self.cbExpl.setEnabled(True)
 
     @pyqtSlot()
     def tcpClientDisconnected(self):
@@ -240,6 +245,7 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnCalibrate.setEnabled(True)
         self.btnSendMdfForFp.setEnabled(True)
         self.btnPrepForMaze.setEnabled(True)
+        self.cbExpl.setEnabled(True)
 
     @pyqtSlot()
     def btnRobotConnectionClicked(self):
@@ -471,27 +477,54 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
         self.btnLoadMap.setEnabled(False)
         self.btnResetMap.setEnabled(False)
         self.btnPrepForMaze.setEnabled(False)
+        self.cbExpl.setEnabled(False)
 
-        self.__actlExplAlgo = ActlExplAlgo()
-        self.__actlExplAlgo.moveToThread(self.__actlExplThread)
-        # Signal-Slot for thread management
-        self.__actlExplThread.started.connect(self.__actlExplAlgo.run)
-        self.__actlExplAlgo.finished.connect(self.__actlExplThread.quit)
-        self.__actlExplAlgo.finished.connect(lambda: print("Actual Exploration Stopped"))
-        self.__actlExplAlgo.finished.connect(self.enableMapSetting)
-        self.__actlExplThread.finished.connect(self.__actlExplAlgo.deleteLater)
-        self.__actlExplAlgo.finished.connect(self.generateMapDescriptor)
-        # Signal-Slot for robot communication
-        self.__actlExplAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
-        self.__graphicsMgr.signalNextMove.connect(self.__actlExplAlgo.determineMove)
+        print(f'Chosen exploration: {self.cbExpl.currentText()}')
+        if self.cbExpl.currentText() == "Full Exploration":
+            self.__actlExplAlgo = ActlExplAlgo()
+            self.__actlExplAlgo.moveToThread(self.__actlExplThread)
+            # Signal-Slot for thread management
+            self.__actlExplThread.started.connect(self.__actlExplAlgo.run)
+            self.__actlExplAlgo.finished.connect(self.__actlExplThread.quit)
+            self.__actlExplAlgo.finished.connect(lambda: print("Actual Exploration Stopped"))
+            self.__actlExplAlgo.finished.connect(self.enableMapSetting)
+            self.__actlExplThread.finished.connect(self.__actlExplAlgo.deleteLater)
+            self.__actlExplAlgo.finished.connect(self.generateMapDescriptor)
+            # Signal-Slot for robot communication
+            self.__actlExplAlgo.signalSendMsg.connect(self.__tcpClient.send_message)
+            self.__graphicsMgr.signalNextMove.connect(self.__actlExplAlgo.determineMove)
 
-        # reusing code. need to go back to determine move
-        self.__actlExplAlgo.signalDetermineMove.connect(self.__graphicsMgr.after_photo)
-        self.__graphicsMgr.signalAfterPhotoData.connect(self.__actlExplAlgo.determineMove)
+            # reusing code. need to go back to determine move
+            self.__actlExplAlgo.signalDetermineMove.connect(self.__graphicsMgr.after_photo)
+            self.__graphicsMgr.signalAfterPhotoData.connect(self.__actlExplAlgo.determineMove)
 
-        # Signal-Slot for timer timeout
-        self.__qTimer.timeout.connect(self.__actlExplAlgo.timer_timeout)
-        self.__qTimer.setInterval(330 * 1000)
+            # Signal-Slot for timer timeout
+            self.__qTimer.timeout.connect(self.__actlExplAlgo.timer_timeout)
+            self.__qTimer.setInterval(330 * 1000)  # Remember to change back to 330
 
-        self.__qTimer.start()
-        self.__actlExplThread.start()
+            self.__qTimer.start()
+            self.__actlExplThread.start()
+        else:
+            self.__actlExplAlgoLWH = ActlExplAlgoLWH()
+            self.__actlExplAlgoLWH.moveToThread(self.__actlExplThread)
+            # Signal-Slot for thread management
+            self.__actlExplThread.started.connect(self.__actlExplAlgoLWH.run)
+            self.__actlExplAlgoLWH.finished.connect(self.__actlExplThread.quit)
+            self.__actlExplAlgoLWH.finished.connect(lambda: print("Actual Exploration Stopped"))
+            self.__actlExplAlgoLWH.finished.connect(self.enableMapSetting)
+            self.__actlExplThread.finished.connect(self.__actlExplAlgoLWH.deleteLater)
+            self.__actlExplAlgoLWH.finished.connect(self.generateMapDescriptor)
+            # Signal-Slot for robot communication
+            self.__actlExplAlgoLWH.signalSendMsg.connect(self.__tcpClient.send_message)
+            self.__graphicsMgr.signalNextMove.connect(self.__actlExplAlgoLWH.determineMove)
+
+            # reusing code. need to go back to determine move
+            self.__actlExplAlgoLWH.signalDetermineMove.connect(self.__graphicsMgr.after_photo)
+            self.__graphicsMgr.signalAfterPhotoData.connect(self.__actlExplAlgoLWH.determineMove)
+
+            # Signal-Slot for timer timeout
+            self.__qTimer.timeout.connect(self.__actlExplAlgoLWH.timer_timeout)
+            self.__qTimer.setInterval(330 * 1000)
+
+            self.__qTimer.start()
+            self.__actlExplThread.start()

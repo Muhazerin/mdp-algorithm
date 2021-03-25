@@ -147,6 +147,8 @@ class ActlExplAlgo(QObject):
                 goal = [2, 2]
                 facing = Bearing.WEST
                 print('[Actual Exploration Algorithm] A* to Home')
+                print(goal)
+                print(allCorners[0][0] + 2, allCorners[0][1] - 1)
                 dest_node = a_star_search([allCorners[0][0] + 2, allCorners[0][1] - 1], goal, facing, robotBearing,
                                           exploredMap, obstacleMap)
                 if dest_node is None:

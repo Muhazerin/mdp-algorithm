@@ -53,14 +53,14 @@ class Bearing(IntEnum):
 
 
 class TileType(IntEnum):
-    UNEXPLORED = 1
-    EXPLORED = 2
-    UNEXPLORED_OBSTACLE = 3
-    EXPLORED_OBSTACLE = 4
-    WAYPOINT = 5
-    START = 6
-    UNEXPLORED_GOAL = 7
-    EXPLORED_GOAL = 8
+    UNEXPLORED = 1              # light gray
+    EXPLORED = 2                # white
+    UNEXPLORED_OBSTACLE = 3     # dark grey
+    EXPLORED_OBSTACLE = 4       # black
+    WAYPOINT = 5                # yellow
+    START = 6                   # blue
+    UNEXPLORED_GOAL = 7         # dark green
+    EXPLORED_GOAL = 8           # green
 
 
 class SensorLocation(IntEnum):
