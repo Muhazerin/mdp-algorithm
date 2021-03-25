@@ -34,6 +34,7 @@ class ActlExplAlgo(QObject):
         self.__move_cmd_index = -1
         self.__initial_pos = None
         self.__front_left_dict = None
+        self.__sending = False
         self.__coverage = 100
         self.__no_of_left_rotation = 0
 
@@ -41,11 +42,14 @@ class ActlExplAlgo(QObject):
     def timer_timeout(self):
         print('Actual Exploration 5m30s passed. FP to Home')
         self.__algoStatus = AlgoStatus.FP_HOME_SEARCH
+        print(f'sending: {self.__sending}')
         time.sleep(1)
-        self.signalDetermineMove.emit()
+        if not self.__sending:
+            self.signalDetermineMove.emit()
 
     def send_msg(self, msg):
         cmd = 'EC|' + msg
+        self.__sending = True
         self.signalSendMsg.emit(cmd)
 
     def normal_robot_movement(self):
@@ -102,6 +106,7 @@ class ActlExplAlgo(QObject):
     @pyqtSlot(dict, list, list, list, int)
     def determineMove(self, frontLeftDict, allCorners, exploredMap, obstacleMap, robotBearing):
         print()
+        self.__sending = False
         self.__front_left_dict = frontLeftDict
         coun = Counter()
         for row in exploredMap:
@@ -160,6 +165,7 @@ class ActlExplAlgo(QObject):
                 else:
                     self.__algoStatus = AlgoStatus.FP_HOME_SEEK
                     self.__move_cmd = gen_move_cmd(dest_node)
+                    print(f'Path: {self.__move_cmd}')
                     self.__move_cmd_index = -1
                     self.send_a_star_move_cmd_no_sense()
             elif self.__algoStatus == AlgoStatus.FP_UNEXPLORED_SEARCH:
@@ -243,6 +249,7 @@ class ActlExplAlgo(QObject):
         self.__robot_just_turned_left_and_move_forward = False
         self.__phantom_block_loop = False
         self.__front_left_dict = None
+        self.__sending = False
         self.__move_cmd_index = -1
         self.__no_of_left_rotation = 0
         self.send_msg('s')
