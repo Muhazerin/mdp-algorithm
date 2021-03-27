@@ -385,28 +385,35 @@ class MDPAlgoApp(QMainWindow, mainwindow.Ui_MainWindow):
 
     @pyqtSlot()
     def generateMapDescriptor(self):
-        p1 = '11'
-        p2 = ''
-        for row in range(0, len(self.__map.exploredMap)):
-            for col in range(0, len(self.__map.exploredMap[row])):
-                if self.__map.exploredMap[row][col] == 0:
-                    p1 += '0'
-                else:
-                    # if the map is explored, add the cell property into p2
-                    p1 += '1'
-                    p2 += str(self.__map.obstacleMap[row][col])
-        p1 += '11'
-        extra = len(p2) % 8
-        padding = 0
-        if extra != 0:
-            padding = 8 - extra
-        for i in range(0, padding):
-            p2 += '0'
-        p1 = hex(int(p1, 2)).lstrip('0x').upper()
-        p2 = '{0:0{1}X}'.format(int(p2, 2), int(len(p2) / 4))
-        print('\nMap Descriptor')
-        print(f'p1: {p1}')
-        print(f'p2: {p2}')
+        try:
+            p1 = '11'
+            p2 = ''
+            for row in range(0, len(self.__map.exploredMap)):
+                for col in range(0, len(self.__map.exploredMap[row])):
+                    if self.__map.exploredMap[row][col] == 0:
+                        p1 += '0'
+                    else:
+                        # if the map is explored, add the cell property into p2
+                        p1 += '1'
+                        p2 += str(self.__map.obstacleMap[row][col])
+            p1 += '11'
+            extra = len(p2) % 8
+            padding = 0
+            if extra != 0:
+                padding = 8 - extra
+            for i in range(0, padding):
+                p2 += '0'
+            p1 = hex(int(p1, 2)).lstrip('0x').upper()
+            p2 = '{0:0{1}X}'.format(int(p2, 2), int(len(p2) / 4))
+            print('\nMap Descriptor')
+            print(f'p1: {p1}')
+            print(f'p2: {p2}')
+
+            # msg = f"MDF|{p1},{p2}"
+            # self.signalSendMsg.emit(msg)
+            # time.sleep(0.1)
+        except Exception as err:
+            print(f'generateMapDescriptor::error msg: {err}')
 
     @pyqtSlot()
     def startActlImgRecog(self):
